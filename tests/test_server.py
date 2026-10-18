@@ -20,6 +20,8 @@ def test_http_routes():
         with urlopen(base + "/api/analyze?source=demo", timeout=10) as response:
             payload = json.load(response)
             assert payload["summary"]["invoice_count"] == 15
+        with urlopen(base + "/settings.js", timeout=10) as response:
+            assert "cgBrowserLocale" in response.read().decode()
         request = Request(base + "/api/ask", data=json.dumps({"question": "Find duplicates", "source": "demo"}).encode(), headers={"Content-Type": "application/json"})
         with urlopen(request, timeout=10) as response:
             message = json.load(response)

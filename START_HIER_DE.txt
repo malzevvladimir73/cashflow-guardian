@@ -1,9 +1,9 @@
-Cashflow Guardian v0.7
+Cashflow Guardian v0.8
 
-Öffne Cashflow_Guardian_v0.7.html per Doppelklick.
+Öffne Cashflow_Guardian_v0.8.html per Doppelklick.
 Die Datei funktioniert offline mit Beispieldaten.
 
-Details und Prüfungen: NEU_IN_VERSION_0.7.txt
+Details und Prüfungen: NEU_IN_VERSION_0.8.txt
 Vorversion: Cashflow_Guardian_v0.6.html
 
 Optionaler lokaler Server: python server.py

@@ -1,14 +1,27 @@
 # Cashflow Guardian
 
 Lokale Rechnungsauswertung mit zwölf Oberflächensprachen, eingebetteten Flaggen,
-Diagrammen und kombinierbaren Filtern. Aktueller Stand: **v0.7**, einschließlich
+Diagrammen und kombinierbaren Filtern. Aktueller Stand: **v0.8**, einschließlich
 Rechnungsdatum und sprachabhängiger Datumsanzeige.
 
 ## Offline ausprobieren
 
-Repository herunterladen und `Cashflow_Guardian_v0.7.html` im Browser öffnen.
+Repository herunterladen und `Cashflow_Guardian_v0.8.html` im Browser öffnen.
 `Cashflow_Guardian_Demo.html` ist dieselbe aktuelle Demo. Keine Installation,
 Zugangsdaten oder externen Dienste erforderlich. Alle enthaltenen Rechnungen sind erfunden.
+
+## Einstellungen in v0.8
+
+Unter Einstellungen lassen sich Datumsformat, Sprache, Standardwährung, Startansicht,
+Gruppierung, sichtbare Spalten und Zeilenabstand festlegen. Die Browserregion wird
+beim ersten Start lokal als Datumsvorgabe gespeichert. Ein Sprachwechsel verändert
+diese Region nicht. Sie ist keine Ermittlung des tatsächlichen Aufenthaltslandes.
+Manuelle Formate umfassen USA, UK, Deutschland, ISO und Kurzform ohne Jahr.
+Die Kurzform zeigt das vollständige Datum als Tooltip. CSV-Daten bleiben ISO-formatiert.
+Einstellungen werden pro Browser gespeichert; file://-Dateien können je nach Browser
+getrennte Speicherbereiche haben. Ohne verfügbaren Browserspeicher gelten Änderungen
+nur für die aktuelle Sitzung. Standardwährung wählt vorhandene Daten aus; fehlt sie,
+wird eine verfügbare Währung angezeigt. Es findet keine Umrechnung statt.
 
 ## Funktionen
 

@@ -9,7 +9,8 @@ const CG_LOCALES = {en:'en-GB',de:'de-DE',es:'es-ES',fr:'fr-FR',pt:'pt-PT',pl:'p
 const CG_ALIASES = {
   sent:'sent',unpaid:'unpaid',partially_paid:'partlyPaid',payment_pending:'paymentPending',overdue:'overdue',paid:'paid',draft:'draft',high:'high',medium:'medium',low:'low'
 };
-let cgLanguage = (()=>{try{const saved=localStorage.getItem('cg_language');return saved && CG_LANGUAGES[saved] ? saved : 'de';}catch(e){return 'de';}})();
+function cgDetectedLanguage(){for(const value of navigator.languages||[navigator.language]){const code=String(value).split('-')[0].toLowerCase();if(CG_LANGUAGES[code])return code;}return 'en';}
+let cgLanguage = (()=>{try{const saved=localStorage.getItem('cg_language');return saved && CG_LANGUAGES[saved] ? saved : cgDetectedLanguage();}catch(e){return cgDetectedLanguage();}})();
 function cgT(key,values={}){
  let result=(CG_TRANSLATIONS[cgLanguage]||CG_TRANSLATIONS.de)[key]||CG_TRANSLATIONS.en[key]||key;
  for(const [name,v] of Object.entries(values))result=result.replaceAll('{'+name+'}',String(v));

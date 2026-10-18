@@ -30,7 +30,7 @@ async function api(path,options={}){
 }
 
 /* Invoice visual analytics. Currency segments are NEVER added together. */
-let cgGroupBy='customer',cgChartCurrency='',cgActiveGroup=null,cgActiveMonth=null;
+let cgGroupBy=cgSettings.group,cgChartCurrency=cgSettings.currency==='auto'?'':cgSettings.currency,cgActiveGroup=null,cgActiveMonth=null;
 function cgGroupKey(row,by=cgGroupBy){
  if(by==='customer')return String(row.customer||'—');
  if(by==='status')return String(row.status||'—');
@@ -175,7 +175,7 @@ function renderGrid(){
  const headers=['invoice','issuedDate','customer','details','amount','status','dueDate','aiSignal'];
  const fields=['number','issued','customer','description','amount','statusText','due','riskText'];
  $('fallbackTable').innerHTML=`<div class="table-scroll"><table class="fallback"><thead><tr>${headers.map((h,i)=>`<th aria-sort="${cgSort.key===fields[i]?(cgSort.direction===1?'ascending':'descending'):'none'}"><button type="button" data-sort="${fields[i]}">${safe(cgT(h))} ${cgSort.key===fields[i]?(cgSort.direction===1?'↑':'↓'):''}</button></th>`).join('')}</tr></thead><tbody>`+
- (visible.length?visible.map(x=>`<tr><td>${safe(x.number)}</td><td class="date-cell">${safe(x.issuedText)}</td><td>${safe(x.customer)}</td><td>${safe(x.description)}</td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell">${safe(x.dueText)}</td><td>${safe(x.riskText)}</td></tr>`).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
+ (visible.length?visible.map(x=>`<tr><td>${safe(x.number)}</td><td class="date-cell" title="${safe(cgFullDate(x.issued))}">${safe(x.issuedText)}</td><td>${safe(x.customer)}</td><td>${safe(x.description)}</td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${safe(x.riskText)}</td></tr>`).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
 }
 let cgSort={key:'number',direction:1};
 async function load(nextSource=source){
@@ -231,6 +231,7 @@ function exportCSV(){
  const a=document.createElement('a');a.href=url;a.download=`cashflow-guardian-${cgLanguage}-${source}-${new Date().toISOString().slice(0,10)}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),300);
 }
 function cgOnLanguageChanged(){
+ cgRenderSettings();
  if(report){renderSummary();renderAlerts();renderAnalytics();renderGrid();}
  resetConversation();
  if(!$('message').hidden)hideToast();
@@ -249,6 +250,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
   $('groupClear').addEventListener('click',()=>{cgActiveGroup=null;cgActiveMonth=null;$('filter').value='';renderAnalytics();renderGrid();});
  try{const status=await api('/api/status');if(!status.sandbox_configured){$('sandboxButton').title=cgT('sandboxDisabled');}}catch(e){toast(cgT('serverError',{msg:e.message}),true);}
  await load('demo');
+ if(!location.hash&&cgSettings.start!=='overview')location.hash=cgSettings.start;
 });
 
 

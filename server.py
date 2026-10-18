@@ -57,6 +57,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("style.css", "text/css; charset=utf-8")
         if path.path == "/i18n.js":
             return self._static("i18n.js", "application/javascript; charset=utf-8")
+        if path.path == "/settings.js":
+            return self._static("settings.js", "application/javascript; charset=utf-8")
         if path.path == "/app.js":
             return self._static("app.js", "application/javascript; charset=utf-8")
         if path.path == "/api/status":
