@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import math
+import re
 from datetime import date
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -14,6 +15,21 @@ MAX_INVOICES = 400
 
 class PayPalError(RuntimeError):
     pass
+
+
+def _error_diagnostic(exc):
+    # Only expose bounded machine identifiers, never response text or credentials.
+    try:
+        payload = json.loads(exc.read(16384))
+    except (ValueError, OSError):
+        return ' PayPal code: unavailable.'
+    if not isinstance(payload, dict):
+        return ' PayPal code: unavailable.'
+    name = payload.get('name', '')
+    debug = payload.get('debug_id', '')
+    name = name if isinstance(name, str) and re.fullmatch(r'[A-Z_]{3,80}', name) else 'unavailable'
+    debug = debug if isinstance(debug, str) and re.fullmatch(r'[a-fA-F0-9]{8,64}', debug) else 'unavailable'
+    return f' PayPal code: {name}; Debug ID: {debug}.'
 
 
 def sandbox_configured():
@@ -40,7 +56,7 @@ def _request(path, token=None, basic=None, data=None, timeout=15):
         if exc.code in (401, 403):
             if basic:
                 raise PayPalError(f"Sandbox login failed (HTTP {exc.code}). Copy Client ID and Secret from the SAME Sandbox app, not the account email/password or Live app.") from exc
-            raise PayPalError(f"Sandbox invoice access denied (HTTP {exc.code}). App login succeeded, but invoice access failed. Check the associated Sandbox Business account and Invoicing access.") from exc
+            raise PayPalError(f"Sandbox invoice access denied (HTTP {exc.code}). App login succeeded, but invoice access failed." + _error_diagnostic(exc)) from exc
         raise PayPalError(f"PayPal Sandbox returned HTTP {exc.code}") from exc
     except (URLError, TimeoutError) as exc:
         raise PayPalError("Could not connect to PayPal Sandbox") from exc
