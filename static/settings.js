@@ -16,9 +16,9 @@ ja:['設定','日付形式','自動（ブラウザーの地域）','ブラウザ
 };
 function cgST(key){return (CG_SETTING_TEXT[cgLanguage]||CG_SETTING_TEXT.en)[CG_SETTING_KEYS.indexOf(key)]||key;}
 function cgBrowserLocale(){for(const value of [...(navigator.languages||[]),navigator.language,'en-US']){try{if(value)return new Intl.DateTimeFormat(value).resolvedOptions().locale;}catch{}}return 'en-US';}
-const cgDefaults=()=>({dateFormat:'auto',region:cgBrowserLocale(),currency:'auto',start:'overview',group:'customer',density:'comfortable',description:true,risk:true});
+const cgDefaults=()=>({dateFormat:'auto',region:cgBrowserLocale(),start:'overview',group:'customer',density:'comfortable',description:true,risk:true});
 function cgReadSettings(){const defaults=cgDefaults();try{const v=JSON.parse(localStorage.getItem('cg_settings_v1')||'{}');if(!v||typeof v!=='object')return defaults;
- for(const [key,allowed] of Object.entries({dateFormat:['auto','dmy','short','mdy','slash','iso','text'],currency:['auto','EUR','USD','GBP','JPY','CHF','CAD','AUD','CNY','INR','PLN','RON'],start:['overview','invoices','insights'],group:['customer','status','month','risk'],density:['comfortable','compact']})){if(allowed.includes(v[key]))defaults[key]=v[key];}
+ for(const [key,allowed] of Object.entries({dateFormat:['auto','dmy','short','mdy','slash','iso','text'],start:['overview','invoices','insights'],group:['customer','status','month','risk'],density:['comfortable','compact']})){if(allowed.includes(v[key]))defaults[key]=v[key];}
  if(typeof v.region==='string'){try{defaults.region=new Intl.DateTimeFormat(v.region).resolvedOptions().locale;}catch{}}
  for(const key of ['description','risk'])if(typeof v[key]==='boolean')defaults[key]=v[key];return defaults;
  }catch{return defaults;}}
@@ -33,7 +33,7 @@ function cgApplyPreferences(){document.body.classList.toggle('compact-rows',cgSe
 function cgRenderSettings(){
  document.querySelectorAll('[data-settingtext]').forEach(el=>el.textContent=cgST(el.dataset.settingtext));
  const language=document.getElementById('settingLanguage');language.replaceChildren(...Object.entries(CG_LANGUAGES).sort((a,b)=>a[1].name.localeCompare(b[1].name,'de')).map(([code,info])=>new Option(info.name,code)));language.value=cgLanguage;
- for(const key of ['dateFormat','currency','start','group','density'])document.getElementById('setting-'+key).value=cgSettings[key];
+ for(const key of ['dateFormat','start','group','density'])document.getElementById('setting-'+key).value=cgSettings[key];
  for(const key of ['description','risk'])document.getElementById('setting-'+key).checked=cgSettings[key];
  document.getElementById('settingRegion').textContent=cgSettings.region;
  document.getElementById('settingPreview').textContent=cgDate('2026-10-26');
@@ -44,7 +44,6 @@ window.addEventListener('DOMContentLoaded',()=>{
  cgSaveSettings();cgApplyPreferences();cgRenderSettings();cgSettingsRoute();
  document.getElementById('settingsForm').addEventListener('change',e=>{const key=e.target.dataset.preference;if(!key)return;cgSettings[key]=e.target.type==='checkbox'?e.target.checked:e.target.value;cgSaveSettings();cgApplyPreferences();
   if(key==='group'){cgGroupBy=cgSettings.group;cgActiveGroup=null;}
-  if(key==='currency'){cgChartCurrency=cgSettings.currency==='auto'?'':cgSettings.currency;cgActiveGroup=null;cgActiveMonth=null;}
   if(report){renderAnalytics();renderGrid();}cgRenderSettings();
  });
  document.getElementById('settingLanguage').addEventListener('change',e=>cgSelectLanguage(e.target.value));

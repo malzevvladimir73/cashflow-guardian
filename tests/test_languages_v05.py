@@ -18,7 +18,7 @@ def test_portuguese_locale_and_ltr():
   assert "pt:'pt-PT'" in S
   assert "html.dir='ltr'" in S
 def test_standalone_flags_are_embedded():
-  s=(ROOT/'Cashflow_Guardian_v0.8.html').read_text(encoding='utf-8')
+  s=(ROOT/'Cashflow_Guardian_v0.9.html').read_text(encoding='utf-8')
   assert 'const CG_FLAG_IMAGES' in s
   assert 'data:image/png;base64,' in s
   assert "pt:'pt-PT'" in s

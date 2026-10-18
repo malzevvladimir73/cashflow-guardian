@@ -30,7 +30,7 @@ async function api(path,options={}){
 }
 
 /* Invoice visual analytics. Currency segments are NEVER added together. */
-let cgGroupBy=cgSettings.group,cgChartCurrency=cgSettings.currency==='auto'?'':cgSettings.currency,cgActiveGroup=null,cgActiveMonth=null;
+let cgGroupBy=cgSettings.group,cgChartCurrency='',cgActiveGroup=null,cgActiveMonth=null;
 function cgGroupKey(row,by=cgGroupBy){
  if(by==='customer')return String(row.customer||'—');
  if(by==='status')return String(row.status||'—');
@@ -51,7 +51,7 @@ function cgAmounts(row){
  const raw=row.due_amount;
  const due=raw===null||raw===undefined||raw===''?amount:Number(raw);
  const open=OPEN_STATES.includes(row.status)?Math.min(amount,Math.max(0,Number.isFinite(due)?due:amount)):0;
- const paid=row.status==='PAID'?amount:row.status==='PARTIALLY_PAID'?amount-open:0;
+ const paid=['PAID','MARKED_AS_PAID'].includes(row.status)?amount:row.status==='PARTIALLY_PAID'?amount-open:0;
  return {open,paid};
 }
 function cgRowValue(row){const v=cgAmounts(row);return row.status==='PAID'?v.paid:v.open;}
@@ -137,18 +137,18 @@ function renderAnalytics(){
 
 function visibleRow(x){return {...x,description:cgDescription(x),statusText:cgStatus(x.status),riskText:cgStatus(x.risk),dueText:cgDate(x.due),issuedText:cgDate(x.issued),flagsText:cgFlags(x)};}
 function renderSummary(){
- $('openCount').textContent=report.invoices.filter(x=>OPEN_STATES.includes(x.status)).length;
- const entries=Object.entries(report.summary.totals_by_currency||{});
- const show=key=>entries.length?entries.map(([cur,v])=>money(cur,v[key])).join(' + '):'—';
- $('outstanding').textContent=show('outstanding');$('overdue').textContent=show('overdue');
- $('flags').textContent=report.summary.flagged_count;
+ const options=[...new Set(report.invoices.map(x=>x.currency))].sort();if(!options.includes(cgChartCurrency))cgChartCurrency=options[0]||'USD';
+ const rows=report.invoices.filter(x=>x.currency===cgChartCurrency);
+ $('openCount').textContent=rows.filter(x=>cgAmounts(x).open>0).length;
+ $('outstanding').textContent=money(cgChartCurrency,rows.reduce((n,x)=>n+cgAmounts(x).open,0));
+ $('overdue').textContent=money(cgChartCurrency,rows.filter(x=>cgOverdue(x)>0).reduce((n,x)=>n+cgAmounts(x).open,0));
+ $('flags').textContent=rows.filter(x=>x.flags?.length).length;
  $('connectionTitle').textContent=source==='demo'?cgT('synthetic'):'PayPal Sandbox';
  $('connectionText').textContent=cgT(source==='demo'?'syntheticDesc':'sandboxDesc');
- $('demoButton').classList.toggle('active',source==='demo');
- $('sandboxButton').classList.toggle('active',source==='sandbox');
+ $('demoButton').classList.toggle('active',source==='demo');$('sandboxButton').classList.toggle('active',source==='sandbox');
 }
 function renderAlerts(){
- const rows=report.invoices.filter(x=>x.flags?.length)
+ const rows=report.invoices.filter(x=>x.currency===cgChartCurrency&&x.flags?.length)
    .sort((a,b)=>((b.risk==='High')-(a.risk==='High'))||(b.days_overdue-a.days_overdue)).slice(0,4);
  $('alerts').innerHTML=rows.length?rows.map(x=>{
   const duplicate=x.flags.some(v=>/duplicate/i.test(v));
@@ -175,20 +175,20 @@ function renderGrid(){
  const headers=['invoice','issuedDate','customer','details','amount','status','dueDate','aiSignal'];
  const fields=['number','issued','customer','description','amount','statusText','due','riskText'];
  $('fallbackTable').innerHTML=`<div class="table-scroll"><table class="fallback"><thead><tr>${headers.map((h,i)=>`<th aria-sort="${cgSort.key===fields[i]?(cgSort.direction===1?'ascending':'descending'):'none'}"><button type="button" data-sort="${fields[i]}">${safe(cgT(h))} ${cgSort.key===fields[i]?(cgSort.direction===1?'↑':'↓'):''}</button></th>`).join('')}</tr></thead><tbody>`+
- (visible.length?visible.map(x=>`<tr><td>${safe(x.number)}</td><td class="date-cell" title="${safe(cgFullDate(x.issued))}">${safe(x.issuedText)}</td><td>${safe(x.customer)}</td><td>${safe(x.description)}</td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${safe(x.riskText)}</td></tr>`).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
+ (visible.length?visible.map(x=>`<tr><td><button type="button" class="invoice-link" data-detail="${report.invoices.findIndex(r=>r.id===x.id)}">${safe(x.number)}</button></td><td class="date-cell" title="${safe(cgFullDate(x.issued))}">${safe(x.issuedText)}</td><td>${safe(x.customer)}</td><td>${safe(x.description)}</td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${safe(x.riskText)}</td></tr>`).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
 }
 let cgSort={key:'number',direction:1};
 async function load(nextSource=source){
- hideToast();const previous=source;
- try{const data=await api('/api/analyze?source='+encodeURIComponent(nextSource));source=nextSource;report=data;cgActiveGroup=null;cgActiveMonth=null;renderSummary();renderAlerts();renderAnalytics();renderGrid();
+ hideToast();const previous=source,serial=++cgLoadSerial;
+ try{const data=await api('/api/analyze?source='+encodeURIComponent(nextSource));if(serial!==cgLoadSerial)return;source=nextSource;report=data;cgAging='all';cgReviewed.clear();cgApplyLanguage();cgActiveGroup=null;cgActiveMonth=null;renderSummary();renderAlerts();renderAnalytics();renderGrid();
    if(source==='sandbox')toast(cgT('sandboxLoaded'));
- }catch(e){source=previous;toast(nextSource==='sandbox'&&window.CG_OFFLINE_REPORT?cgT('sandboxDisabled'):e.message,true);}
+ }catch(e){if(serial!==cgLoadSerial)return;source=previous;toast(nextSource==='sandbox'&&window.CG_OFFLINE_REPORT?cgT('sandboxDisabled'):e.message,true);}
 }
 function appendMessage(text,user=false){const el=document.createElement('div');el.className=user?'user-message':'bot-message';el.textContent=text;$('conversation').append(el);$('conversation').scrollTop=$('conversation').scrollHeight;}
 function resetConversation(){$('conversation').replaceChildren();appendMessage(cgT('assistantWelcome'));}
 function questionType(q){
  const text=String(q||'').toLocaleLowerCase();
- if(/\bINV-\d{3,}\b/i.test(q))return 'invoice';
+ if(report?.invoices.some(x=>String(x.number).toLowerCase()===String(q).trim().toLowerCase()))return 'invoice';
  if(/dupl|dopp|dubl|dublet|podwójn|dublu|dubla|重复|重複|डुप्ल|تكرار|duplic|dédoubl|doppion/i.test(text))return 'duplicates';
  if(/überfällig|overdue|late|zaległ|przetermin|achterstall|verval|restant|scadenț|întârzi|vencid|retard|scadut|atrasad|逾期|अतिदेय|متأخر|期限超過|期限を過ぎ|支払期限/i.test(text))return 'overdue';
  if(/largest|highest|most|biggest|najwięks|hoogst|grootst|cel mai mare|größ|höchst|mayor|máxim|grande|maior|maggiore|massim|最大|सबसे|أكبر|最高/i.test(text))return 'largest';
@@ -197,9 +197,9 @@ function questionType(q){
 }
 function answerLocal(q, forced){
  if(!report)return cgT('pleaseWait');
- const kind=forced||questionType(q),rows=report.invoices;
+ const kind=forced||questionType(q),rows=report.invoices.filter(x=>x.currency===cgChartCurrency);
  if(kind==='invoice'){
-  const number=(q.match(/INV-\d{3,}/i)||[])[0];const x=rows.find(x=>x.number?.toUpperCase()===number?.toUpperCase());
+  const number=q.trim();const x=rows.find(x=>x.number?.toUpperCase()===number?.toUpperCase());
   return x?cgT('invoiceLead',{number:x.number,customer:x.customer,amount:money(x.currency,x.amount),status:cgStatus(x.status),due:cgDate(x.due),flags:cgFlags(x)||cgT('noSignals')}):cgT('unsupportedAsk');
  }
  if(kind==='duplicates'){
@@ -207,10 +207,10 @@ function answerLocal(q, forced){
   return pairs.length?cgT('duplicateLead',{items:pairs.slice(0,6).map(x=>x.first+' + '+x.second+' ('+Math.round(x.similarity*100)+'%)').join('; ')}):cgT('noDuplicates');
  }
  if(kind==='overdue'){
-  return cgT('overdueLead',{items:Object.entries(report.summary.totals_by_currency||{}).map(([c,v])=>money(c,v.overdue)).join(' · ')||'—'});
+  return cgT('overdueLead',{items:money(cgChartCurrency,rows.filter(x=>cgOverdue(x)>0).reduce((sum,x)=>sum+cgAmounts(x).open,0))});
  }
  if(kind==='largest'){
-  const items=rows.filter(x=>OPEN_STATES.includes(x.status)).sort((a,b)=>b.amount-a.amount).slice(0,3);
+  const items=rows.filter(x=>OPEN_STATES.includes(x.status)).sort((a,b)=>cgAmounts(b).open-cgAmounts(a).open).slice(0,3);
   return items.length?cgT('highestLead',{items:items.map(x=>x.number+' ('+x.customer+'): '+money(x.currency,x.due_amount??x.amount)).join('; ')}):cgT('noOpenInvoice');
  }
  if(kind==='urgent'){
@@ -225,7 +225,7 @@ function exportCSV(){
  const cols=['number','customer','description','amount','currency','status','issued','due','risk','flags'];
  const names=['csv_number','csv_customer','csv_details','csv_amount','csv_currency','csv_status','csv_issued','csv_due','csv_risk','csv_flags'];
  const rows=cgVisibleRows().map(x=>({ ...x,description:cgDescription(x),status:cgStatus(x.status),risk:cgStatus(x.risk),flags:cgFlags(x)}));
- const quote=s=>{let text=String(s??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};
+ const quote=s=>{let text=String(s??'');if(/^[\s]*[=+@\-]|^[\t\r\n]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};
  const csv='\ufeff'+[names.map(k=>quote(cgT(k))).join(','),...rows.map(r=>cols.map(k=>quote(r[k])).join(','))].join('\r\n');
  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  const a=document.createElement('a');a.href=url;a.download=`cashflow-guardian-${cgLanguage}-${source}-${new Date().toISOString().slice(0,10)}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),300);
@@ -246,8 +246,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('export').onclick=exportCSV;
  $('fallbackTable').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(!b)return;cgSort={key:b.dataset.sort,direction:cgSort.key===b.dataset.sort?-cgSort.direction:1};renderGrid();$('fallbackTable').querySelector('[data-sort="'+cgSort.key+'"]')?.focus();});
   $('groupBy').addEventListener('change',e=>{cgGroupBy=e.target.value;cgActiveGroup=null;renderAnalytics();renderGrid();});
-  $('chartCurrency').addEventListener('change',e=>{cgChartCurrency=e.target.value;cgActiveGroup=null;cgActiveMonth=null;renderAnalytics();renderGrid();});
-  $('groupClear').addEventListener('click',()=>{cgActiveGroup=null;cgActiveMonth=null;$('filter').value='';renderAnalytics();renderGrid();});
+  $('chartCurrency').addEventListener('change',e=>{cgChartCurrency=e.target.value;cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgRefresh();});
+  $('groupClear').addEventListener('click',()=>{cgActiveGroup=null;cgActiveMonth=null;cgAging='all';$('filter').value='';renderAnalytics();renderGrid();});
  try{const status=await api('/api/status');if(!status.sandbox_configured){$('sandboxButton').title=cgT('sandboxDisabled');}}catch(e){toast(cgT('serverError',{msg:e.message}),true);}
  await load('demo');
  if(!location.hash&&cgSettings.start!=='overview')location.hash=cgSettings.start;
@@ -275,4 +275,5 @@ function renderMonthly(){
  if(!groups.size)host.textContent=cgT('emptyChart');
 }
 const cgRenderAnalyticsBase=renderAnalytics;
-renderAnalytics=function(){cgRenderAnalyticsBase();renderMonthly();};
+renderAnalytics=function(){cgRenderAnalyticsBase();renderMonthly();cgRenderWorkbench();};
+const cgBaseRenderGrid=renderGrid;renderGrid=function(){cgBaseRenderGrid();cgRenderWorkbench();};

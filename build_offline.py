@@ -14,6 +14,7 @@ html = html.replace('<script defer src="/i18n.js"></script>',
 html = html.replace('<script defer src="/app.js"></script>',
                     '<script>' + (ROOT / 'static/app.js').read_text(encoding='utf-8') + '</script>')
 html = html.replace('<script defer src="/settings.js"></script>', '<script>' + (ROOT / 'static/settings.js').read_text(encoding='utf-8') + '</script>')
-for name in ('Cashflow_Guardian_v0.8.html', 'Cashflow_Guardian_Demo.html'):
+html = html.replace('<script defer src="/workbench.js"></script>', '<script>' + (ROOT / 'static/workbench.js').read_text(encoding='utf-8') + '</script>')
+for name in ('Cashflow_Guardian_v0.9.html', 'Cashflow_Guardian_Demo.html'):
     (ROOT / name).write_text(html, encoding='utf-8')
 print('Offline demo rebuilt from static/; v0.6 retained unchanged.')

@@ -5,6 +5,7 @@ and IsolationForest to rank unusual invoice amounts/ages. Outputs are flags
 for human review, NOT evidence of fraud and NOT payment instructions.
 """
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
@@ -12,6 +13,22 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 UNPAID = {"SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "OVERDUE"}
+
+def invoice_amounts(row):
+    """Exact decimal accounting; status and outstanding amount are separate."""
+    def value(v):
+        try:
+            n = Decimal(str(v))
+            if not n.is_finite() or n < 0:
+                raise ValueError('Invalid invoice amount')
+            return n
+        except InvalidOperation as exc:
+            raise ValueError('Invalid invoice amount') from exc
+    amount = value(row.get('amount', 0))
+    due = row.get('due_amount')
+    outstanding = min(amount, value(amount if due in (None, '') else due)) if row.get('status') in UNPAID else Decimal(0)
+    paid = amount if row.get('status') in ('PAID', 'MARKED_AS_PAID') else amount - outstanding if row.get('status') == 'PARTIALLY_PAID' else Decimal(0)
+    return outstanding, paid
 
 
 def _dt(v):
@@ -29,7 +46,7 @@ def score_invoices(invoices, today=None):
 
     # Genuine machine learning for semantic duplicate matching.
     # Character n-grams accommodate spelling and punctuation variations.
-    corpus = [str(x.get("description") or "Unknown") for x in records]
+    corpus = [str(x.get("description") or "Unknown").strip() or 'Unknown' for x in records]
     vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), lowercase=True)
     vectors = vectorizer.fit_transform(corpus)
     similarity = cosine_similarity(vectors)
@@ -71,7 +88,7 @@ def score_invoices(invoices, today=None):
 
     for i, rec in enumerate(records):
         due = _dt(rec.get("due"))
-        is_open = rec.get("status") in UNPAID
+        is_open = invoice_amounts(rec)[0] > 0
         overdue_days = max(0, (today - due).days) if due and is_open else 0
         flags = []
         if overdue_days:
@@ -92,9 +109,9 @@ def _summary(rows, duplicate_pairs):
     for currency in currencies:
         bucket = [i for i in rows if i.get("currency") == currency]
         totals[currency] = {
-            "outstanding": round(sum(float(x.get("due_amount", x["amount"])) for x in bucket if x["status"] in UNPAID), 2),
-            "overdue": round(sum(float(x.get("due_amount", x["amount"])) for x in bucket if x.get("days_overdue", 0) > 0), 2),
-            "paid": round(sum(float(x["amount"]) for x in bucket if x["status"] == "PAID"), 2),
+            "outstanding": float(sum((invoice_amounts(x)[0] for x in bucket), Decimal(0))),
+            "overdue": float(sum((invoice_amounts(x)[0] for x in bucket if x.get("days_overdue", 0) > 0), Decimal(0))),
+            "paid": float(sum((invoice_amounts(x)[1] for x in bucket), Decimal(0))),
         }
     return {
         "invoice_count": len(rows), "flagged_count": sum(bool(i.get("flags")) for i in rows),

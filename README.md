@@ -1,90 +1,70 @@
-# Cashflow Guardian
+# Cashflow Guardian 0.9
 
-Lokale Rechnungsauswertung mit zwölf Oberflächensprachen, eingebetteten Flaggen,
-Diagrammen und kombinierbaren Filtern. Aktueller Stand: **v0.8**, einschließlich
-Rechnungsdatum und sprachabhängiger Datumsanzeige.
+A local invoice review workbench with twelve languages, currency-separated totals,
+aging buckets, interactive charts, invoice details and reminder drafts.
 
-## Offline ausprobieren
+## Try it
+Open `Cashflow_Guardian_v0.9.html` (or `Cashflow_Guardian_Demo.html`). No install is
+needed. Included invoices are fictional. Import your own CSV using the downloadable
+template, or a JSON array. Imported records remain in memory; settings alone are
+stored in the browser. Exported files must be protected by their owner.
 
-Repository herunterladen und `Cashflow_Guardian_v0.8.html` im Browser öffnen.
-`Cashflow_Guardian_Demo.html` ist dieselbe aktuelle Demo. Keine Installation,
-Zugangsdaten oder externen Dienste erforderlich. Alle enthaltenen Rechnungen sind erfunden.
-
-## Einstellungen in v0.8
-
-Unter Einstellungen lassen sich Datumsformat, Sprache, Standardwährung, Startansicht,
-Gruppierung, sichtbare Spalten und Zeilenabstand festlegen. Die Browserregion wird
-beim ersten Start lokal als Datumsvorgabe gespeichert. Ein Sprachwechsel verändert
-diese Region nicht. Sie ist keine Ermittlung des tatsächlichen Aufenthaltslandes.
-Manuelle Formate umfassen USA, UK, Deutschland, ISO und Kurzform ohne Jahr.
-Die Kurzform zeigt das vollständige Datum als Tooltip. CSV-Daten bleiben ISO-formatiert.
-Einstellungen werden pro Browser gespeichert; file://-Dateien können je nach Browser
-getrennte Speicherbereiche haben. Ohne verfügbaren Browserspeicher gelten Änderungen
-nur für die aktuelle Sitzung. Standardwährung wählt vorhandene Daten aus; fehlt sie,
-wird eine verfügbare Währung angezeigt. Es findet keine Umrechnung statt.
-
-## Funktionen
-
-- Gruppen nach Kunde, Zahlungsstatus, Fälligkeitsmonat oder Prüfpriorität.
-- Monatsbalken, Gruppenwahl, Suche und Währung gemeinsam als Filter.
-- Getrennte offene und bezahlte Beträge; Teilzahlungen werden aufgeteilt.
-- Sortierbare Rechnungsliste mit Rechnungsdatum und Fälligkeit.
-- CSV-Export der gefilterten Auswahl.
-- Deutsch, English, Español, Français, Português (Portugal), Italiano, 中文,
-  हिन्दी, 日本語, Polski, Română und Nederlands.
-- Gespeicherte Sprachwahl, lokalisierte Datums-/Zahlenformate und stabile Seitenanordnung.
-- Lokale Hinweise auf ähnliche Rechnungen und ungewöhnliche Beträge mittels TF-IDF
-  und IsolationForest; Hinweise müssen manuell geprüft werden.
-
-Die Monatsübersicht zeigt Fälligkeiten, keine tatsächlichen Zahlungseingänge.
-Währungen werden nicht zusammengerechnet. Die Offline-Demo enthält einen festen
-Beispieldatenstand; die Server-Demo erzeugt Datumswerte relativ zum aktuellen Tag.
-
-## Lokaler Server
-
-Python 3.11 oder neuer:
+For local machine learning, install Python 3.11+ and run:
 
 ```console
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r requirements.txt
-python server.py
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python server.py
 ```
 
-Die angezeigte Adresse im Browser öffnen. Der Server bindet an localhost.
-Standardmäßig werden ausschließlich Beispieldaten verwendet.
+On Windows, `SETUP_WINDOWS.bat` installs these dependencies; then use
+`START_SERVER.bat`. Open the localhost address printed by the server.
+For PayPal use `START_SANDBOX.bat` and follow [SANDBOX_SETUP.md](SANDBOX_SETUP.md).
+The app reads sandbox invoices; it never initiates payments or sends reminders.
 
-Optional liest der Server PayPal-Sandbox-Rechnungen. Zugangsdaten ausschließlich
-lokal über die Umgebungsvariablen `PAYPAL_SANDBOX_CLIENT_ID` und
-`PAYPAL_SANDBOX_CLIENT_SECRET` bereitstellen. Keine Zugangsdaten in den Quellcode,
-in GitHub oder in HTML-Dateien schreiben. Die Anwendung lädt keine `.env`-Dateien
-automatisch. Produktionskonten und schreibende Zahlungsvorgänge werden nicht verwendet.
+## What changed
+- Removed the duplicate header settings button and misleading default currency.
+- The overview currency selector refreshes totals, alerts, charts and invoice rows.
+  Different currencies are never added together or converted.
+- Aging buckets: current, 1–30, 31–60, 61–90 and 90+ days overdue.
+- Invoice details, similarity evidence, session-only review marks and editable,
+  multilingual reminder drafts. Copying a draft does not send it.
+- CSV/JSON import with limits, date/amount validation and no automatic persistence.
+- Partial payments split into paid and outstanding amounts.
+- Twelve languages and flags, grouping, monthly filtering and CSV export retained.
+- Date preferences initially follow browser locale, not inferred physical location.
+  Settings allow US, European, ISO and compact formats; exports use ISO dates.
 
-## Weiterentwicklung und Tests
+## Analysis and boundaries
+The Python server uses TF-IDF similarity and IsolationForest to flag items for
+human review. These are heuristic signals, not fraud findings or credit scores.
+The offline demo contains precomputed example signals; offline imports use due-date
+rules only. The assistant answers supported questions from invoice data, not an
+external language model. No invoices are uploaded to an AI provider.
 
-`static/index.html`, `static/style.css`, `static/i18n.js` und `static/app.js`
-sind die gemeinsame Oberfläche für Server und Offline-Demo.
+The monthly chart represents invoice due dates, not actual cash receipts. Dashboard
+totals apply to the selected currency; table filters narrow the displayed rows.
+Imports accept 1–1,000 rows and at most 2 MB; PayPal reads at most 400 invoices and
+fails instead of silently showing incomplete totals beyond that limit.
+
+This is a local prototype, not a hosted multi-user accounting or payment service.
+Real PayPal sandbox verification is pending account setup. AG Grid is not integrated.
+See [SECURITY.md](SECURITY.md) and [HACKATHON.md](HACKATHON.md).
+
+## Development
+Edit `static/` and Python sources; run `python build_offline.py` to regenerate the
+latest HTML and demo. Earlier HTML versions are retained. Build input v0.6 contains
+only synthetic invoices. Do not replace it with private financial data.
 
 ```console
-python build_offline.py
 python -m pytest -q
+python build_offline.py
 ```
 
-Der Offline-Build übernimmt nur die enthaltenen synthetischen Daten aus der
-unverändert aufbewahrten v0.6-HTML-Datei. Er ist unabhängig von Sandbox-Zugangsdaten.
-Nach Änderungen an `static/` beide generierten aktuellen HTML-Dateien mit einchecken.
-Flaggen sind in `i18n.js` eingebettet und zusätzlich unter `assets/flags/` verfügbar.
+Validation: 27 Python tests; Edge checks for offline and server imports, malformed
+input, currency totals, details, draft/review, aging, twelve languages and mobile
+navigation. Actual PayPal connectivity has not been tested with credentials.
+GitHub Actions checks tests and reproducible HTML. Make changes on a branch and
+submit a pull request. Never commit credentials, financial exports or environments.
 
-Änderungen auf einem neuen Branch durchführen, Tests ausführen und per Pull Request
-gegen `main` einreichen. Lokale Bankexporte, CSVs, Umgebungsdateien und Backups
-gehören nicht ins Repository. GitHub Actions führt die Python-Tests und einen
-Abgleich der generierten Demo aus.
-
-Die lokale Veröffentlichung wurde zusätzlich mit Edge geprüft: zwölf Sprachen,
-Flaggen, Gruppen-/Monats-/Suchfilter, Export, Teilzahlungen, Sortierung und mobile
-Darstellung. Eine echte PayPal-Verbindung wurde nicht getestet.
-
-## Lizenz
-
-MIT, siehe `LICENSE`.
+MIT license; see LICENSE.

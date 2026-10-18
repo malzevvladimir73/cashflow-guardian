@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import math
 from datetime import date
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -66,6 +67,8 @@ def get_invoices():
         total_pages = batch.get("total_pages")
         if len(records) < 100 or (total_pages is not None and page >= int(total_pages)):
             break
+        if page == 4:
+            raise PayPalError('More than 400 invoices: analysis stopped to avoid incomplete totals.')
     return [normalize_invoice(item) for item in items[:MAX_INVOICES]]
 
 
@@ -73,9 +76,12 @@ def _amount(value):
     if isinstance(value, dict):
         value = value.get("value", 0)
     try:
-        return max(0.0, round(float(value), 2))
-    except (ValueError, TypeError):
-        return 0.0
+        amount = float(value)
+        if not math.isfinite(amount) or amount < 0 or amount > 1_000_000_000:
+            raise PayPalError('Invalid invoice amount')
+        return amount
+    except (ValueError, TypeError) as exc:
+        raise PayPalError('Invalid invoice amount') from exc
 
 
 def normalize_invoice(inv):
@@ -95,10 +101,10 @@ def normalize_invoice(inv):
         "email": str(bill_to.get("email_address") or ""),
         "description": item_names or str(detail.get("memo") or "Services"),
         "amount": _amount(money),
-        "due_amount": _amount(inv.get("due_amount") or money),
+        "due_amount": _amount(inv.get("due_amount") if inv.get("due_amount") is not None else (0 if inv.get('status') in ('PAID', 'MARKED_AS_PAID') else money)),
         "currency": str(money.get("currency_code") or "USD") if isinstance(money, dict) else "USD",
         "status": str(inv.get("status") or "DRAFT").upper(),
         "issued": str(detail.get("invoice_date") or "")[:10],
-        "due": str(detail.get("payment_term", {}).get("due_date") or "")[:10],
+        "due": str((detail.get("payment_term") or {}).get("due_date") or "")[:10],
         "source": "sandbox",
     }
