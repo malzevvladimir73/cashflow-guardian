@@ -38,7 +38,9 @@ def _request(path, token=None, basic=None, data=None, timeout=15):
     except HTTPError as exc:
         # Keep errors generic to avoid leaking sensitive request details.
         if exc.code in (401, 403):
-            raise PayPalError("Sandbox authorization failed: verify client credentials and Invoicing permissions") from exc
+            if basic:
+                raise PayPalError(f"Sandbox login failed (HTTP {exc.code}). Copy Client ID and Secret from the SAME Sandbox app, not the account email/password or Live app.") from exc
+            raise PayPalError(f"Sandbox invoice access denied (HTTP {exc.code}). App login succeeded, but invoice access failed. Check the associated Sandbox Business account and Invoicing access.") from exc
         raise PayPalError(f"PayPal Sandbox returned HTTP {exc.code}") from exc
     except (URLError, TimeoutError) as exc:
         raise PayPalError("Could not connect to PayPal Sandbox") from exc
