@@ -1,0 +1,16 @@
+number,customer,description,amount,currency,status,issued,due
+INV-1024,Northstar Studio,Brand identity and visual guidelines,1850,USD,SENT,2026-08-29,2026-09-27
+INV-1025,Lumen Market,Monthly ecommerce analytics dashboard,920,USD,PAID,2026-09-08,2026-10-08
+INV-1026,Harbor Works,Website development sprint two,3200,USD,SENT,2026-09-15,2026-10-10
+INV-1027,Velvet Cafe,Social media content design package,480,USD,SENT,2026-10-03,2026-11-01
+INV-1028,Northstar Studio,Brand identity & visual guide lines,1850,USD,SENT,2026-08-30,2026-09-28
+INV-1029,Bright Labs,Automation workflow build,1100,USD,DRAFT,2026-10-15,2026-11-14
+INV-1030,Kite & Co,One-time consulting session,350,USD,PAID,2026-09-23,2026-10-17
+INV-1031,Harbor Works,Web development phase 3,2850,USD,SENT,2026-10-07,2026-10-26
+INV-1032,Aurora Media,Quarterly content strategy,740,USD,SENT,2026-09-21,2026-10-17
+INV-1033,Lumen Market,Ecommerce analytics monthly reporting,920,USD,SENT,2026-10-12,2026-11-11
+INV-1034,Echo Garden,Product photography 40 images,1250,USD,PAID,2026-09-01,2026-09-29
+INV-1035,Orchid Labs,Software integration annual plan,6400,USD,SENT,2026-08-13,2026-09-12
+INV-1036,Velvet Cafe,Menu and brand icon updates,460,USD,SENT,2026-09-28,2026-10-18
+INV-1037,Bright Labs,QA and release automation support,1050,USD,SENT,2026-10-05,2026-11-04
+INV-1038,Aurora Media,Content strategy quarterly planning,740,USD,PAID,2026-07-22,2026-08-20
