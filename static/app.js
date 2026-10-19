@@ -60,14 +60,13 @@ function cgGroupMatch(row){
 }
 function cgSearchMatch(row){
  const x=visibleRow(row),q=$('filter').value.trim().toLocaleLowerCase(CG_LOCALES[cgLanguage]);
- return [x.number,x.customer,x.description,x.statusText,x.riskText,x.flagsText].join(' ').toLocaleLowerCase(CG_LOCALES[cgLanguage]).includes(q);
+ return [x.number,x.customer,x.description,x.statusText,x.dueStatusText,x.riskText,x.flagsText].join(' ').toLocaleLowerCase(CG_LOCALES[cgLanguage]).includes(q);
 }
-function cgVisibleRows(){return report.invoices.filter(cgGroupMatch).filter(cgSearchMatch);}
+function cgVisibleRows(){return report.invoices.filter(cgGroupMatch).filter(x=>cgAging!=='all'||cgReviewOnly||cgActiveGroup||cgActiveMonth||cgAmounts(x).open>0).filter(cgSearchMatch);}
 function cgChangeGroup(key){
  if(cgActiveGroup&&cgActiveGroup.key===key&&cgActiveGroup.by===cgGroupBy&&cgActiveGroup.currency===cgChartCurrency){cgActiveGroup=null;}
  else cgActiveGroup={key,by:cgGroupBy,currency:cgChartCurrency};
- renderAnalytics();renderGrid();
- document.getElementById('invoices')?.scrollIntoView({block:'start',behavior:'smooth'});
+ renderSummary();renderAnalytics();renderGrid();
 }
 function renderAnalytics(){
  if(!report)return;
@@ -107,7 +106,7 @@ function renderAnalytics(){
   const paid=document.createElement('span');paid.className='bar-segment bar-paid';paid.style.width=100*item.paid/max+'%';
   track.append(open,paid);row.append(top,track);row.addEventListener('click',()=>cgChangeGroup(item.key));chart.append(row);
  }
- $('groupClear').hidden=!cgActiveGroup&&!cgActiveMonth&&!$('filter').value;
+ $('groupClear').hidden=!cgActiveGroup&&!cgActiveMonth&&!$('filter').value&&!cgReviewOnly&&cgAging==='all';
  if(cgActiveGroup)$('groupClear').title=cgT('groupSelected',{name:cgGroupName(cgActiveGroup.key,cgActiveGroup.by)});
  const today=new Date();today.setHours(0,0,0,0);
  let paid=0,overdue=0,upcoming=0;
@@ -135,13 +134,17 @@ function renderAnalytics(){
  for(const part of parts){const el=document.createElement('div');el.className='donut-entry';const dot=document.createElement('i');dot.className='chart-dot';dot.style.background=part.color;const text=document.createElement('span');text.textContent=cgT(part.key);const sum=document.createElement('strong');sum.textContent=money(cgChartCurrency,part.amount);text.append(sum);el.append(dot,text);legend.append(el);}
 }
 
-function visibleRow(x){return {...x,description:cgDescription(x),statusText:cgStatus(x.status),riskText:cgStatus(x.risk),dueText:cgDate(x.due),issuedText:cgDate(x.issued),flagsText:cgFlags(x)};}
+function visibleRow(x){const isOverdue=cgOverdue(x)>0;return {...x,description:cgDescription(x),statusText:cgStatus(x.status),riskText:cgStatus(x.risk),dueText:cgDate(x.due),issuedText:cgDate(x.issued),dueStatusText:isOverdue?cgT('overdue'):'',reviewedText:cgReviewed.has(x.number)?'✓':'',reviewedLabel:cgWT('reviewed'),flagsText:cgFlags(x),isOverdue};}
 function renderSummary(){
  const options=[...new Set(report.invoices.map(x=>x.currency))].sort();if(!options.includes(cgChartCurrency))cgChartCurrency=options[0]||'USD';
- const rows=report.invoices.filter(x=>x.currency===cgChartCurrency);
+ const rows=report.invoices.filter(cgScopeMatch);
  $('openCount').textContent=rows.filter(x=>cgAmounts(x).open>0).length;
  $('outstanding').textContent=money(cgChartCurrency,rows.reduce((n,x)=>n+cgAmounts(x).open,0));
  $('overdue').textContent=money(cgChartCurrency,rows.filter(x=>cgOverdue(x)>0).reduce((n,x)=>n+cgAmounts(x).open,0));
+ $('outstandingFilter').setAttribute('aria-pressed',String(cgAging==='open'));
+ $('openInvoicesFilter').setAttribute('aria-pressed',String(cgAging==='open'));
+ $('overdueFilter').setAttribute('aria-pressed',String(cgAging==='overdue'));
+ $('reviewFilter').setAttribute('aria-pressed',String(cgReviewOnly));
  $('flags').textContent=rows.filter(x=>x.flags?.length).length;
  $('connectionTitle').textContent=source==='demo'?cgT('synthetic'):'PayPal Sandbox';
  $('connectionText').textContent=cgT(source==='demo'?'syntheticDesc':'sandboxDesc');
@@ -152,7 +155,7 @@ function renderAlerts(){
    .sort((a,b)=>((b.risk==='High')-(a.risk==='High'))||(b.days_overdue-a.days_overdue)).slice(0,4);
  $('alerts').innerHTML=rows.length?rows.map(x=>{
   const duplicate=x.flags.some(v=>/duplicate/i.test(v));
-  return `<div class="alert ${duplicate?'alert-duplicate':''}"><div class="alert-icon">${duplicate?'◇':'!'}</div><div><strong>${safe(x.customer)} <span style="color:#b0bfcc;font-weight:500">· ${safe(x.number)}</span></strong><p>${safe(cgFlags(x))}</p></div><span class="amount">${safe(money(x.currency,x.amount))}</span></div>`;
+  return `<button type="button" class="alert alert-invoice ${duplicate?'alert-duplicate':''}" data-insight-invoice="${safe(x.number)}"><span class="alert-icon" aria-hidden="true">${duplicate?'◇':'!'}</span><span class="alert-copy"><strong>${safe(x.customer)} <span style="color:#b0bfcc;font-weight:500">· ${safe(x.number)}</span></strong><span class="alert-description">${safe(cgFlags(x))}</span></span><span class="amount">${safe(money(x.currency,x.amount))}</span></button>`;
  }).join(''):`<div class="alert alert-nothing"><div class="alert-icon">✓</div><div><strong>${safe(cgT('allClear'))}</strong><p>${safe(cgT('noSignals'))}</p></div></div>`;
 }
 function columns(){return [
@@ -161,7 +164,9 @@ function columns(){return [
  {field:'description',headerName:cgT('details'),minWidth:200},
  {field:'amount',headerName:cgT('amount'),minWidth:125,valueFormatter:p=>money(p.data.currency,p.value)},
  {field:'statusText',headerName:cgT('status'),minWidth:125},
- {field:'dueText',headerName:cgT('dueDate'),minWidth:154},
+ {field:'dueText',headerName:cgT('dueDate'),minWidth:140},
+ {field:'dueStatusText',headerName:cgWT('dueStatus'),minWidth:145,cellRenderer:p=>{if(!p.data.isOverdue)return '';const marker=document.createElement('span');marker.className='overdue-flag';marker.setAttribute('role','img');marker.setAttribute('aria-label',cgT('overdue'));const square=document.createElement('i');square.className='overdue-square';square.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=cgT('overdue');marker.append(square,label);return marker;}},
+ {field:'reviewedText',headerName:cgWT('reviewStatus'),minWidth:145,sortable:false,cellRenderer:p=>{const button=document.createElement('button');button.type='button';button.className='review-toggle'+(p.value?' is-reviewed':'');button.dataset.reviewToggle=p.data.number;button.setAttribute('aria-pressed',String(Boolean(p.value)));button.setAttribute('aria-label',cgWT(p.value?'unreview':'review'));button.title=cgWT(p.value?'unreview':'review');button.textContent=p.value?'✓':'○';return button;}},
  {field:'riskText',headerName:cgT('aiSignal'),minWidth:124}
 ];}
 function gridStrings(){return {page:cgT('page'),next:cgT('next'),previous:cgT('previous'),of:cgT('of'),to:cgT('to'),pageSize:cgT('pageSize'),noRowsToShow:cgT('noRows'),filterOoo:cgT('filterOoo'),contains:cgT('contains'),notContains:cgT('notContains'),equals:cgT('equals'),blank:cgT('blank'),notBlank:cgT('notBlank'),loadingOoo:cgT('pleaseWait')};}
@@ -170,17 +175,17 @@ function renderGrid(){
  $('tableCount').textContent=cgT('records',{n:rows.length})+' · '+cgT(source==='demo'?'syntheticTag':'sandboxReadOnly');
  $('invoiceGrid').hidden=true;$('fallbackTable').hidden=false;
  const q=oldFilter.trim().toLocaleLowerCase(CG_LOCALES[cgLanguage]);
- const visible=rows.filter(x=>[x.number,x.customer,x.description,x.statusText,x.riskText,x.flagsText].join(' ').toLocaleLowerCase(CG_LOCALES[cgLanguage]).includes(q));
+ const visible=rows.filter(x=>[x.number,x.customer,x.description,x.statusText,x.dueStatusText,x.riskText,x.flagsText].join(' ').toLocaleLowerCase(CG_LOCALES[cgLanguage]).includes(q));
  visible.sort((a,b)=>{const av=a[cgSort.key]??'',bv=b[cgSort.key]??'';return (typeof av==='number'?av-bv:String(av).localeCompare(String(bv),CG_LOCALES[cgLanguage]))*cgSort.direction;});
- const headers=['invoice','issuedDate','customer','details','amount','status','dueDate','aiSignal'];
- const fields=['number','issued','customer','description','amount','statusText','due','riskText'];
- $('fallbackTable').innerHTML=`<div class="table-scroll"><table class="fallback"><thead><tr>${headers.map((h,i)=>`<th aria-sort="${cgSort.key===fields[i]?(cgSort.direction===1?'ascending':'descending'):'none'}"><button type="button" data-sort="${fields[i]}">${safe(cgT(h))} ${cgSort.key===fields[i]?(cgSort.direction===1?'↑':'↓'):''}</button></th>`).join('')}</tr></thead><tbody>`+
- (visible.length?visible.map(x=>`<tr><td><button type="button" class="invoice-link" data-detail="${report.invoices.findIndex(r=>r.id===x.id)}">${safe(x.number)}</button></td><td class="date-cell" title="${safe(cgFullDate(x.issued))}">${safe(x.issuedText)}</td><td>${safe(x.customer)}</td><td>${safe(x.description)}</td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${safe(x.riskText)}</td></tr>`).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
+ const headers=['invoice','customer','amount','status','dueDate','dueStatus','reviewStatus','aiSignal'];
+ const fields=['number','customer','amount','statusText','due','dueStatusText','reviewedText','riskText'];
+ $('fallbackTable').innerHTML=`<div class="table-scroll"><table class="fallback"><thead><tr>${headers.map((h,i)=>`<th aria-sort="${cgSort.key===fields[i]?(cgSort.direction===1?'ascending':'descending'):'none'}"><button type="button" data-sort="${fields[i]}">${safe(h==='dueStatus'?cgWT(h):h==='reviewStatus'?cgWT(h):cgT(h))} ${cgSort.key===fields[i]?(cgSort.direction===1?'↑':'↓'):''}</button></th>`).join('')}</tr></thead><tbody>`+
+ (visible.length?visible.map(x=>{const action=cgWT(x.reviewedText?'unreview':'review');return `<tr><td class="invoice-cell"><button type="button" class="invoice-link" data-detail="${report.invoices.findIndex(r=>r.id===x.id)}">${safe(x.number)}</button><small class="invoice-sub date-cell" title="${safe(cgFullDate(x.issued))}">${safe(cgT('issuedDate'))}: ${safe(x.issuedText)}</small></td><td class="customer-cell"><span>${safe(x.customer)}</span><small class="invoice-description">${safe(x.description)}</small></td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${x.isOverdue?`<span class="overdue-flag" role="img" aria-label="${safe(cgT('overdue'))}"><i class="overdue-square" aria-hidden="true"></i><span>${safe(cgT('overdue'))}</span></span>`:''}</td><td><button type="button" class="review-toggle${x.reviewedText?' is-reviewed':''}" data-review-toggle="${safe(x.number)}" aria-pressed="${Boolean(x.reviewedText)}" aria-label="${safe(action)}" title="${safe(action)}">${x.reviewedText?'✓':'○'}</button></td><td>${safe(x.riskText)}</td></tr>`;}).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
 }
 let cgSort={key:'number',direction:1};
 async function load(nextSource=source){
  hideToast();const previous=source,serial=++cgLoadSerial;
- try{const data=await api('/api/analyze?source='+encodeURIComponent(nextSource));if(serial!==cgLoadSerial)return;source=nextSource;report=data;cgAging='all';cgReviewed.clear();cgApplyLanguage();cgActiveGroup=null;cgActiveMonth=null;renderSummary();renderAlerts();renderAnalytics();renderGrid();
+ try{const data=await api('/api/analyze?source='+encodeURIComponent(nextSource));if(serial!==cgLoadSerial)return;source=nextSource;report=data;cgAging='all';cgReviewOnly=false;cgReviewed.clear();cgApplyLanguage();cgActiveGroup=null;cgActiveMonth=null;renderSummary();renderAlerts();renderAnalytics();renderGrid();
    if(source==='sandbox')toast(cgT('sandboxLoaded'));
  }catch(e){if(serial!==cgLoadSerial)return;source=previous;toast(nextSource==='sandbox'&&window.CG_OFFLINE_REPORT?cgT('sandboxDisabled'):e.message,true);}
 }
@@ -236,6 +241,19 @@ function cgOnLanguageChanged(){
  resetConversation();
  if(!$('message').hidden)hideToast();
 }
+function cgInitInvoicePanelResize(){
+ const panel=$('invoices'),handle=$('invoiceResize');if(!panel||!handle)return;
+ const storageKey='cg-invoice-panel-height-v1';let height=Number(localStorage.getItem(storageKey))||parseFloat(getComputedStyle(panel).height)||0;
+ const limits=()=>({min:window.matchMedia('(max-width: 680px)').matches?230:260,max:Math.max(300,Math.floor(window.innerHeight*.82))});
+ const apply=value=>{const {min,max}=limits();height=Math.max(min,Math.min(max,Math.round(value)));document.documentElement.style.setProperty('--invoice-panel-height',height+'px');handle.setAttribute('aria-valuenow',String(height));handle.setAttribute('aria-valuemax',String(max));};
+ if(height)apply(height);
+ handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();handle.setPointerCapture(e.pointerId);handle.classList.add('dragging');});
+ handle.addEventListener('pointermove',e=>{if(!handle.hasPointerCapture(e.pointerId))return;apply(window.innerHeight-e.clientY);});
+ const finish=e=>{if(handle.hasPointerCapture(e.pointerId)){handle.releasePointerCapture(e.pointerId);handle.classList.remove('dragging');localStorage.setItem(storageKey,String(height));}};
+ handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
+ handle.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const {min,max}=limits();apply(e.key==='Home'?min:e.key==='End'?max:height+(e.key==='ArrowUp'?32:-32));localStorage.setItem(storageKey,String(height));});
+ window.addEventListener('resize',()=>{if(height)apply(height);});
+}
 window.addEventListener('DOMContentLoaded',async()=>{
  cgInitLanguage();resetConversation();
  $('demoButton').onclick=()=>load('demo');$('sandboxButton').onclick=()=>load('sandbox');
@@ -243,11 +261,15 @@ window.addEventListener('DOMContentLoaded',async()=>{
  const ids=['urgent','duplicates','overdue'];
  document.querySelectorAll('[data-prompt]').forEach((b,i)=>{b.onclick=()=>ask(cgT(['promptUrgent','promptDuplicate','promptOverdue'][i]),ids[i]);});
  $('filter').addEventListener('input',()=>{renderAnalytics();renderGrid();});
+ document.querySelectorAll('[data-aging-filter]').forEach(button=>button.addEventListener('click',()=>cgSelectAging(button.dataset.agingFilter)));
+ $('reviewFilter').addEventListener('click',()=>{cgReviewOnly=!cgReviewOnly;cgAging='all';renderSummary();renderAnalytics();renderGrid();});
  $('export').onclick=exportCSV;
  $('fallbackTable').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(!b)return;cgSort={key:b.dataset.sort,direction:cgSort.key===b.dataset.sort?-cgSort.direction:1};renderGrid();$('fallbackTable').querySelector('[data-sort="'+cgSort.key+'"]')?.focus();});
-  $('groupBy').addEventListener('change',e=>{cgGroupBy=e.target.value;cgActiveGroup=null;renderAnalytics();renderGrid();});
-  $('chartCurrency').addEventListener('change',e=>{cgChartCurrency=e.target.value;cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgRefresh();});
-  $('groupClear').addEventListener('click',()=>{cgActiveGroup=null;cgActiveMonth=null;cgAging='all';$('filter').value='';renderAnalytics();renderGrid();});
+  $('groupBy').addEventListener('change',e=>{cgGroupBy=e.target.value;cgActiveGroup=null;renderSummary();renderAnalytics();renderGrid();});
+  $('chartCurrency').addEventListener('change',e=>{cgChartCurrency=e.target.value;cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgReviewOnly=false;cgRefresh();});
+  $('groupClear').addEventListener('click',()=>{cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgReviewOnly=false;$('filter').value='';renderSummary();renderAnalytics();renderGrid();});
+ document.querySelectorAll('a[href="#invoices"]').forEach(link=>link.addEventListener('click',()=>{if(report){renderGrid();cgRenderWorkbench();}}));
+ cgInitInvoicePanelResize();
  try{const status=await api('/api/status');if(!status.sandbox_configured){$('sandboxButton').title=cgT('sandboxDisabled');}}catch(e){toast(cgT('serverError',{msg:e.message}),true);}
  await load('demo');
  if(!location.hash&&cgSettings.start!=='overview')location.hash=cgSettings.start;
@@ -270,7 +292,7 @@ function renderMonthly(){
   const label=cgGroupName(month,'month');
   b.setAttribute('aria-label',label+', '+cgT('openLegend')+': '+money(cgChartCurrency,v.open)+', '+cgT('paidLegend')+': '+money(cgChartCurrency,v.paid));
   b.innerHTML=`<span>${safe(label)}</span><div class="month-bars"><i style="height:${v.open/max*100}%"></i><i style="height:${v.paid/max*100}%"></i></div><small>${safe(cgT('openLegend'))}: ${safe(money(cgChartCurrency,v.open))}</small><small>${safe(cgT('paidLegend'))}: ${safe(money(cgChartCurrency,v.paid))}</small>`;
-  b.onclick=()=>{cgActiveMonth=cgActiveMonth===month?null:month;renderAnalytics();renderGrid();};host.append(b);
+  b.onclick=()=>{cgAging='all';cgActiveMonth=cgActiveMonth===month?null:month;renderSummary();renderAnalytics();renderGrid();};host.append(b);
  }
  if(!groups.size)host.textContent=cgT('emptyChart');
 }
