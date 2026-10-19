@@ -1,0 +1,42 @@
+Cashflow Guardian v0.7 — 18.10.2026
+
+START: Cashflow_Guardian_v0.7.html doppelt anklicken.
+Die Offline-Demo benötigt weder Installation noch Zugangsdaten.
+
+Verbesserungen gegenüber dem gelieferten ZIP v0.6:
+- Monatsdiagramm mit offenen und bezahlten Beträgen, nach Fälligkeitsmonat.
+- Monatsbalken und Kundengruppe gemeinsam als Filter verwendbar.
+- Alle Gruppen erreichbar; bisher waren nur die ersten zwölf sichtbar.
+- Monatsgruppen chronologisch statt nach Betrag sortiert.
+- Suche, Währung, Gruppe und Monat gelten gemeinsam für Tabelle und CSV-Export.
+- Sortierbare Tabellenspalten, korrekte Trefferzahl und Hinweis bei leerer Suche.
+- Teilzahlungen getrennt in offenen und bereits bezahlten Anteil aufgeschlüsselt.
+- Fehlende Restbeträge werden nicht mehr als Null behandelt.
+- Diagramme und zwölf Sprachen nun auch in der lokalen Serveroberfläche.
+- Flaggenbilder eingebettet, Portugal-Flagge und pt-PT, alphabetische Sprachauswahl.
+- Layout bleibt bei Sprachwechsel links-nach-rechts; keine gespiegelte Seitenleiste.
+- Mobile Darstellung ohne Überbreite der gesamten Seite.
+
+Vergleich mit den lokalen Referenzen:
+Umsatzliste.html: Monatsauswahl, verbundene Filter, Gruppenübersicht und Diagrammgestaltung
+als Vorbild für die Rechnungsauswertung übernommen. Keine persönlichen Buchungsdaten kopiert.
+PFR_Local: Flaggenmenü, aktive Sprache, Beibehalten der Sprache und übersetzte Oberfläche
+verglichen. Eingebettete Flaggenbilder sind unter Windows zuverlässiger als Flaggen-Emoji.
+Die zwölf bereits vorhandenen Sprachen bleiben erhalten, darunter Polski, Română und Nederlands.
+
+Prüfungen:
+12 vorhandene Python-Tests erfolgreich (inklusive lokaler HTTP-Routen).
+Edge: alle zwölf Sprachen/Flaggen, Monats-/Gruppen-/Suchfilter, CSV-Export,
+Teilzahlungen, mehr als zwölf Gruppen, Tabellensortierung, gespeicherte Sprache,
+Desktop und 390-Pixel-Mobilansicht erfolgreich geprüft; keine JavaScript-Laufzeitfehler.
+Keine echte PayPal-Verbindung getestet; Tests verwenden Beispieldaten bzw. simulierte Antworten.
+
+Wichtig zur Bedeutung:
+Monate beziehen sich auf Fälligkeiten, nicht auf tatsächliche Zahlungseingänge.
+Rechnungsstatus ist kein Nachweis eines Bankeingangs. Die Offline-Daten bleiben Beispieldaten.
+Währungen werden getrennt ausgewählt und nicht zusammengerechnet.
+
+Entwicklung:
+static/ enthält die gemeinsame Oberfläche. Nach Änderungen erzeugt
+python build_offline.py die beiden aktuellen Offline-HTML-Dateien neu.
+Cashflow_Guardian_v0.6.html bleibt als unveränderte Vorversion erhalten.

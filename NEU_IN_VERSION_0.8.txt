@@ -1,0 +1,15 @@
+Cashflow Guardian v0.8 — 18.10.2026
+
+START: Cashflow_Guardian_v0.8.html
+
+Neu: Einstellungen-Tab mit Datumsformat-Vorschau, automatischer Browserregion,
+US-/UK-/deutschem-/ISO-/Kurzformat, unabhängiger Sprache, Standardwährung,
+Startansicht, Standardgruppierung, Spaltenwahl, Zeilenabstand und Zurücksetzen.
+Einstellungen bleiben lokal gespeichert. Keine Standort- oder IP-Abfrage.
+Datumswerte werden chronologisch sortiert, CSV behält ISO-Daten.
+Alle bisherigen Diagramm-, Gruppen-, Sprach- und Rechnungsdatum-Funktionen bleiben erhalten.
+
+Geprüft: 12 Python-Tests; Edge mit en-US, en-GB, de-DE und ja-JP;
+zwölf Sprachen, Speicherung, Wiederöffnung, manueller Vorrang, Zurücksetzen,
+Startansicht, Spaltenwahl, mobile Ansicht und gesperrter Browserspeicher.
+Keine echte PayPal-Verbindung getestet.

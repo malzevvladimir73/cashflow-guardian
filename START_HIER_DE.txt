@@ -1,0 +1,10 @@
+Cashflow Guardian v0.9
+
+Offline: Cashflow_Guardian_v0.9.html doppelklicken.
+Mit lokaler KI: einmal SETUP_WINDOWS.bat, danach START_SERVER.bat.
+Mit PayPal-Testkonto: SANDBOX_SETUP.md lesen, dann START_SANDBOX.bat.
+
+Neu: Währungsauswahl aktualisiert Kennzahlen; kein doppelter Einstellungsknopf.
+Rechnungsdetails, Altersgruppen, lokaler Import und Erinnerungsentwürfe.
+Vorversionen bleiben erhalten. Keine Nachrichten oder Zahlungen werden gesendet.
+PayPal-Sandbox-Verbindung ist bis zur Kontoeinrichtung noch ungeprüft.
