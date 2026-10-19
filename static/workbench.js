@@ -14,19 +14,53 @@ zh:['导入发票','CSV 模板','本地发票','文件仅在本次会话处理�
 hi:['चालान आयात करें','CSV टेम्पलेट','स्थानीय चालान','फ़ाइलें केवल इस सत्र में संसाधित होती हैं। सर्वर विश्लेषण इसी कंप्यूटर पर होता है।','देरी के अनुसार बकाया','अभी देय नहीं','दिन','देय तिथि नहीं','सभी','विवरण जाँचें','बंद करें','जाँचा हुआ चिह्नित करें','जाँचा गया (सत्र)','भुगतान अनुस्मारक मसौदा','पाठ कॉपी करें','कॉपी हुआ','खुद जाँचकर भेजें। कोई संदेश अपने आप नहीं भेजा जाता।','अमान्य आयात। टेम्पलेट उपयोग करें; पंक्ति त्रुटि','जाँच जारी…','ऑफ़लाइन: दिनांक नियम, ML नहीं। सर्वर: स्थानीय समानता और विसंगति विश्लेषण। संकेत धोखाधड़ी का प्रमाण नहीं हैं।','मुद्रा फ़िल्टर, रूपांतरण नहीं। योग और चालान चयनित मुद्रा में।','कोई बकाया चालान नहीं।','स्थानीय डेटा हटाएँ'],
 ja:['請求書をインポート','CSV テンプレート','ローカル請求書','ファイルはこのセッションのみで処理します。サーバー分析はこの端末で実行します。','延滞期間別の未収金','期限前','日','期日なし','すべて','詳細を確認','閉じる','確認済みにする','確認済み（セッション）','支払案内の下書き','テキストをコピー','コピーしました','下書きを確認し、ご自身で送信してください。自動送信はしません。','無効なインポート。テンプレートを使用してください。エラー行','確認中…','オフラインは日付ルールのみで ML は使いません。サーバーはローカル類似度・異常分析を行います。詐欺の証明ではありません。','通貨フィルターのみで換算しません。指標と請求書は選択した通貨です。','未収請求書はありません。','ローカルデータを消去']
 };
-function cgWT(key){return (CG_WORK_TEXT[cgLanguage]||CG_WORK_TEXT.en)[CG_WORK_KEYS.indexOf(key)]||key;}
-let cgAging='all',cgReviewed=new Set(),cgDetailRow=null,cgLoadSerial=0;
+const CG_WORK_EXTRA={
+ de:{dueStatus:'Fälligkeitsstatus',reviewCount:'ZU PRÜFEN',reviewCountDesc:'Rechnungen mit mindestens einem Prüfhinweis',resizeInvoices:'Höhe des Rechnungsbereichs anpassen'},
+ en:{dueStatus:'Due status',reviewCount:'TO REVIEW',reviewCountDesc:'Invoices with at least one review flag',resizeInvoices:'Adjust invoice panel height'},
+ es:{dueStatus:'Estado del vencimiento',reviewCount:'POR REVISAR',reviewCountDesc:'Facturas con al menos una señal de revisión',resizeInvoices:'Ajustar la altura de las facturas'},
+ fr:{dueStatus:'État de l’échéance',reviewCount:'À VÉRIFIER',reviewCountDesc:'Factures avec au moins un signal de contrôle',resizeInvoices:'Ajuster la hauteur du panneau des factures'},
+ pt:{dueStatus:'Estado do vencimento',reviewCount:'A REVER',reviewCountDesc:'Faturas com pelo menos um alerta de revisão',resizeInvoices:'Ajustar a altura da área das faturas'},
+ it:{dueStatus:'Stato della scadenza',reviewCount:'DA VERIFICARE',reviewCountDesc:'Fatture con almeno un avviso di controllo',resizeInvoices:'Regola l’altezza del riquadro fatture'},
+ pl:{dueStatus:'Status terminu',reviewCount:'DO SPRAWDZENIA',reviewCountDesc:'Faktury z co najmniej jednym sygnałem do weryfikacji',resizeInvoices:'Zmień wysokość panelu faktur'},
+ ro:{dueStatus:'Starea scadenței',reviewCount:'DE VERIFICAT',reviewCountDesc:'Facturi cu cel puțin un semnal de verificare',resizeInvoices:'Ajustează înălțimea panoului de facturi'},
+ nl:{dueStatus:'Vervalstatus',reviewCount:'TE CONTROLEREN',reviewCountDesc:'Facturen met minstens één controlesignaal',resizeInvoices:'Pas de hoogte van het factuurpaneel aan'},
+ zh:{dueStatus:'到期状态',reviewCount:'待核查',reviewCountDesc:'至少有一项核查提示的发票',resizeInvoices:'调整发票面板高度'},
+ hi:{dueStatus:'देय स्थिति',reviewCount:'जाँचें',reviewCountDesc:'कम से कम एक समीक्षा संकेत वाले चालान',resizeInvoices:'चालान पैनल की ऊँचाई समायोजित करें'},
+ ja:{dueStatus:'支払期限の状態',reviewCount:'要確認',reviewCountDesc:'確認シグナルが1件以上ある請求書',resizeInvoices:'請求書パネルの高さを調整'}
+};
+const CG_WORK_ACTIONS={
+ de:{reviewStatus:'Prüfstatus',unreview:'Prüfstatus entfernen'},en:{reviewStatus:'Review status',unreview:'Remove reviewed status'},
+ es:{reviewStatus:'Estado de revisión',unreview:'Quitar estado revisado'},fr:{reviewStatus:'Statut de vérification',unreview:'Retirer le statut vérifié'},
+ pt:{reviewStatus:'Estado da revisão',unreview:'Remover estado de revisão'},it:{reviewStatus:'Stato di verifica',unreview:'Rimuovi stato verificato'},
+ pl:{reviewStatus:'Status sprawdzenia',unreview:'Usuń status sprawdzenia'},ro:{reviewStatus:'Starea verificării',unreview:'Elimină starea verificării'},
+ nl:{reviewStatus:'Controlstatus',unreview:'Controlstatus verwijderen'},zh:{reviewStatus:'审核状态',unreview:'移除已审核状态'},
+ hi:{reviewStatus:'समीक्षा स्थिति',unreview:'समीक्षा स्थिति हटाएँ'},ja:{reviewStatus:'確認状態',unreview:'確認状態を解除'}
+};
+function cgWT(key){return CG_WORK_EXTRA[cgLanguage]?.[key]||CG_WORK_ACTIONS[cgLanguage]?.[key]||(CG_WORK_TEXT[cgLanguage]||CG_WORK_TEXT.en)[CG_WORK_KEYS.indexOf(key)]||key;}
+let cgAging='all',cgReviewOnly=false,cgReviewed=new Set(),cgDetailRow=null,cgLoadSerial=0;
 function cgOverdue(row){if(!OPEN_STATES.includes(row.status)||cgAmounts(row).open<=0)return 0;const p=cgParsedDate(row.due);if(!p)return 0;const now=new Date(),today=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());return Math.max(0,Math.floor((today-p.d)/86400000));}
 function cgAgeKey(row){if(!cgParsedDate(row.due))return 'unknown';const n=cgOverdue(row);return n===0?'current':n<=30?'1–30':n<=60?'31–60':n<=90?'61–90':'90+';}
 const cgBaseGroupMatch=cgGroupMatch;
-cgGroupMatch=function(row){return cgBaseGroupMatch(row)&&(cgAging==='all'||(cgAmounts(row).open>0&&cgAgeKey(row)===cgAging));};
+function cgScopeMatch(row){return cgBaseGroupMatch(row)&&(!cgReviewOnly||Boolean(row.flags?.length));}
+cgGroupMatch=function(row){return cgScopeMatch(row)&&(cgAging==='all'||(cgAging==='open'?cgAmounts(row).open>0:(cgAmounts(row).open>0&&(cgAging==='overdue'?cgOverdue(row)>0:cgAgeKey(row)===cgAging))));};
+function cgSelectAging(key){cgAging=key;renderSummary();renderGrid();renderAnalytics();cgRenderWorkbench();}
 function cgRenderWorkbench(){
  document.querySelectorAll('[data-worktext]').forEach(el=>el.textContent=cgWT(el.dataset.worktext));
+ const resize=$('invoiceResize');if(resize){resize.setAttribute('aria-label',cgWT('resizeInvoices'));resize.title=cgWT('resizeInvoices');}
  if(!report)return;
- const rows=report.invoices.filter(x=>x.currency===cgChartCurrency),buckets=['current','1–30','31–60','61–90','90+','unknown'];
- const host=$('agingBuckets');host.replaceChildren();
- for(const key of ['all',...buckets]){const selected=rows.filter(x=>cgAmounts(x).open>0&&(key==='all'||cgAgeKey(x)===key)),sum=selected.reduce((n,x)=>n+cgAmounts(x).open,0);const b=document.createElement('button');b.type='button';b.className='age-bucket';b.dataset.age=key;b.setAttribute('aria-pressed',String(cgAging===key));
- const label=['all','current','unknown'].includes(key)?cgWT(key):key+' '+cgWT('days');b.innerHTML=`<span>${safe(label)}</span><strong>${safe(money(cgChartCurrency,sum))}</strong><small>${safe(cgT('records',{n:selected.length}))}</small>`;b.onclick=()=>{cgAging=key;renderGrid();renderAnalytics();cgRenderWorkbench();};host.append(b);}
+ const rows=report.invoices.filter(cgScopeMatch).filter(cgSearchMatch),open=rows.filter(x=>cgAmounts(x).open>0);
+ const overdue=open.filter(x=>cgOverdue(x)>0),current=open.filter(x=>cgAgeKey(x)==='current');
+ const summary=$('agingSummary');summary.replaceChildren();
+ for(const [key,label,selected] of [['open',cgT('outstandingLabel'),open],['overdue',cgT('overdueLabel'),overdue],['current',cgWT('current'),current]]){
+  const sum=selected.reduce((n,x)=>n+cgAmounts(x).open,0),b=document.createElement('button');b.type='button';b.className='aging-summary-card'+(key==='overdue'?' aging-summary-overdue':'');b.dataset.age=key;b.setAttribute('aria-pressed',String(cgAging===key));
+  const labelEl=document.createElement('span');labelEl.className='aging-summary-label';labelEl.textContent=label;
+  if(key==='overdue'){const marker=document.createElement('i');marker.className='overdue-square';marker.setAttribute('aria-hidden','true');labelEl.prepend(marker);}
+  const amount=document.createElement('strong');amount.textContent=money(cgChartCurrency,sum);const count=document.createElement('small');count.textContent=cgT('records',{n:selected.length});b.append(labelEl,amount,count);b.onclick=()=>cgSelectAging(key);summary.append(b);
+ }
+ const host=$('agingBuckets');host.replaceChildren();const bucketKeys=['1–30','31–60','61–90','90+','unknown'];let shown=0;
+ for(const key of bucketKeys){const selected=open.filter(x=>cgAgeKey(x)===key);if(!selected.length)continue;shown++;const sum=selected.reduce((n,x)=>n+cgAmounts(x).open,0),b=document.createElement('button');b.type='button';b.className='age-bucket';b.dataset.age=key;b.setAttribute('aria-pressed',String(cgAging===key));
+  const label=key==='unknown'?cgWT(key):key+' '+cgWT('days');b.innerHTML=`<span>${safe(label)}</span><strong>${safe(money(cgChartCurrency,sum))}</strong><small>${safe(cgT('records',{n:selected.length}))}</small>`;b.onclick=()=>cgSelectAging(key);host.append(b);}
+ host.hidden=shown===0;
  $('importPrivacy').textContent=cgWT('privacy');$('analysisMethod').textContent=cgWT('method');
  if(source==='import'){
   $('connectionTitle').textContent=cgWT('local');$('connectionText').textContent=cgWT('privacy');
@@ -44,7 +78,7 @@ function cgShowDetails(index){const row=report.invoices[index];if(!row)return;cg
  const fields=[['issuedDate',cgDate(row.issued)],['dueDate',cgDate(row.due)],['amount',money(row.currency,row.amount)],['outstandingLabel',money(row.currency,cgAmounts(row).open)],['status',cgStatus(row.status)],['details',cgDescription(row)],['aiSignal',cgFlags(row)||cgT('noSignals')]];
  $('invoiceDetailBody').replaceChildren();for(const [key,value] of fields){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=cgT(key);dd.textContent=value;$('invoiceDetailBody').append(dt,dd);}
  $('duplicateEvidence').replaceChildren();for(const pair of report.duplicates||[]){if(![pair.first,pair.second].includes(row.number))continue;const p=document.createElement('p');p.textContent=`${pair.first} ↔ ${pair.second} · ${Math.round(pair.similarity*100)}% · ${cgT('possibleDuplicate')}`;$('duplicateEvidence').append(p);}
- $('reviewInvoice').textContent=cgWT(cgReviewed.has(row.number)?'reviewed':'review');$('draftText').value='';$('draftArea').hidden=true;$('draftReminder').hidden=!(cgAmounts(row).open>0&&cgOverdue(row)>0);
+ $('reviewInvoice').textContent=cgWT(cgReviewed.has(row.number)?'unreview':'review');$('draftText').value='';$('draftArea').hidden=true;$('draftReminder').hidden=!(cgAmounts(row).open>0&&cgOverdue(row)>0);
  cgRenderWorkbench();$('invoiceDetail').showModal();
 }
 function cgDraftReminder(row){const introductions={de:'Guten Tag, bitte prüfen Sie den offenen Betrag zu folgender Rechnung. Falls Sie bereits bezahlt haben, vielen Dank – teilen Sie uns bitte das Zahlungsdatum mit.',en:'Hello, please review the outstanding balance for the invoice below. If you have already paid, thank you — please let us know the payment date.',es:'Hola, revise el saldo pendiente de esta factura. Si ya ha pagado, gracias; indíquenos la fecha del pago.',fr:'Bonjour, merci de vérifier le solde de cette facture. Si vous avez déjà payé, merci de nous communiquer la date du paiement.',pt:'Olá, por favor verifique o valor em aberto desta fatura. Se já pagou, obrigado; indique a data do pagamento.',it:'Buongiorno, verifichi il saldo della fattura. Se ha già pagato, grazie; ci comunichi la data del pagamento.',pl:'Dzień dobry, prosimy sprawdzić saldo tej faktury. Jeśli już zapłacono, dziękujemy i prosimy o datę płatności.',ro:'Bună ziua, vă rugăm să verificați soldul facturii. Dacă ați plătit deja, vă mulțumim; comunicați data plății.',nl:'Hallo, controleer het openstaande bedrag van deze factuur. Als u al heeft betaald, bedankt; geef ons de betaaldatum door.',zh:'您好，请核对以下发票的未付金额。如果已经付款，谢谢，请告知付款日期。',hi:'नमस्ते, कृपया इस चालान की बकाया राशि जाँचें। यदि भुगतान हो चुका है, धन्यवाद; कृपया भुगतान की तारीख बताएँ।',ja:'こんにちは。以下の請求書の未払額をご確認ください。お支払い済みの場合は、支払日をお知らせください。'};
@@ -62,13 +96,14 @@ function cgValidateImport(data){if(!Array.isArray(data)||data.length<1||data.len
  for(const k of ['amount','due_amount']){let v=r[k];if(k==='due_amount'&&(v===undefined||v===null||v===''))v=['PAID','MARKED_AS_PAID'].includes(x.status)?0:x.amount;if(v===null||v===undefined||v===''||typeof v==='boolean'||!/^\d+(\.\d+)?$/.test(String(v))||!Number.isFinite(Number(v))||Number(v)>1e9)fail(k);x[k]=Number(v);}if(x.due_amount>x.amount||(['PAID','MARKED_AS_PAID'].includes(x.status)&&x.due_amount!==0))fail('due_amount');x.source='local import';return x;});
 }
 function cgOfflineScore(rows){for(const x of rows){x.days_overdue=cgOverdue(x);x.flags=x.days_overdue?[x.days_overdue+' days overdue']:[];x.risk=x.days_overdue>21?'High':x.days_overdue?'Medium':'Low';}return {invoices:rows,duplicates:[],summary:{totals_by_currency:{},flagged_count:rows.filter(x=>x.flags.length).length}};}
-async function cgImportFile(file){if(!file)return;const serial=++cgLoadSerial;try{if(file.size>2_000_000)throw Error(cgWT('invalid')+' (2 MB)');toast(cgWT('working'));const text=(await file.text()).replace(/^\uFEFF/,'');const rows=cgValidateImport(file.name.toLowerCase().endsWith('.json')?JSON.parse(text):cgCSV(text));const result=window.CG_OFFLINE_REPORT?cgOfflineScore(rows):await api('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rows)});if(serial!==cgLoadSerial)return;report=result;source='import';cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgChartCurrency='';cgReviewed.clear();$('filter').value='';cgApplyLanguage();cgRefresh();resetConversation();hideToast();}catch(e){if(serial===cgLoadSerial)toast(e instanceof SyntaxError?cgWT('invalid'):e.message,true);}finally{$('invoiceFile').value='';}}
+async function cgImportFile(file){if(!file)return;const serial=++cgLoadSerial;try{if(file.size>2_000_000)throw Error(cgWT('invalid')+' (2 MB)');toast(cgWT('working'));const text=(await file.text()).replace(/^\uFEFF/,'');const rows=cgValidateImport(file.name.toLowerCase().endsWith('.json')?JSON.parse(text):cgCSV(text));const result=window.CG_OFFLINE_REPORT?cgOfflineScore(rows):await api('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rows)});if(serial!==cgLoadSerial)return;report=result;source='import';cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgReviewOnly=false;cgChartCurrency='';cgReviewed.clear();$('filter').value='';cgApplyLanguage();cgRefresh();resetConversation();hideToast();}catch(e){if(serial===cgLoadSerial)toast(e instanceof SyntaxError?cgWT('invalid'):e.message,true);}finally{$('invoiceFile').value='';}}
 window.addEventListener('DOMContentLoaded',()=>{
  $('importInvoices').onclick=()=>$('invoiceFile').click();$('invoiceFile').onchange=e=>cgImportFile(e.target.files[0]);
  $('downloadTemplate').onclick=()=>{const csv='number,customer,description,amount,due_amount,currency,status,issued,due\r\nEXAMPLE-001,Example customer,Example service,100.00,40.00,EUR,PARTIALLY_PAID,2026-09-01,2026-09-30\r\n';const u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download='cashflow-template.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),500);};
- $('discardImport').onclick=()=>{cgLoadSerial++;cgReviewed.clear();cgAging='all';load('demo');};
- $('fallbackTable').addEventListener('click',e=>{const b=e.target.closest('[data-detail]');if(b)cgShowDetails(Number(b.dataset.detail));});
- $('closeDetail').onclick=()=>$('invoiceDetail').close();$('reviewInvoice').onclick=()=>{if(cgDetailRow){cgReviewed.add(cgDetailRow.number);$('reviewInvoice').textContent=cgWT('reviewed');}};
+ $('discardImport').onclick=()=>{cgLoadSerial++;cgReviewed.clear();cgAging='all';cgReviewOnly=false;load('demo');};
+ $('alerts').addEventListener('click',e=>{const button=e.target.closest('[data-insight-invoice]');if(!button||!report)return;const index=report.invoices.findIndex(row=>row.number===button.dataset.insightInvoice);if(index<0)return;cgActiveGroup=null;cgActiveMonth=null;cgAging='all';cgReviewOnly=false;$('filter').value='';renderSummary();renderAnalytics();renderGrid();location.hash='invoices';cgShowDetails(index);});
+ $('fallbackTable').addEventListener('click',e=>{const toggle=e.target.closest('[data-review-toggle]');if(toggle){const number=toggle.dataset.reviewToggle;if(cgReviewed.has(number))cgReviewed.delete(number);else cgReviewed.add(number);renderGrid();return;}const b=e.target.closest('[data-detail]');if(b)cgShowDetails(Number(b.dataset.detail));});
+ $('closeDetail').onclick=()=>$('invoiceDetail').close();$('reviewInvoice').onclick=()=>{if(cgDetailRow){if(cgReviewed.has(cgDetailRow.number))cgReviewed.delete(cgDetailRow.number);else cgReviewed.add(cgDetailRow.number);$('reviewInvoice').textContent=cgWT(cgReviewed.has(cgDetailRow.number)?'unreview':'review');renderGrid();}};
  $('draftReminder').onclick=()=>{$('draftText').value=cgDraftReminder(cgDetailRow);$('draftArea').hidden=false;};
  $('copyDraft').onclick=async()=>{try{await navigator.clipboard.writeText($('draftText').value);$('copyDraft').textContent=cgWT('copied');}catch{$('draftText').focus();$('draftText').select();}};
  cgRenderWorkbench();
