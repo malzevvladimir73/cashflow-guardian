@@ -25,7 +25,9 @@ missed seeded near-match and task time. Do not use live customer records.
 
 ## Dataset and answer key
 
-Input: `benchmark/invoices_2026-10-19.json`. The benchmark is wholly synthetic.
+Use the CSV for both methods: [benchmark/invoices_2026-10-19.csv](benchmark/invoices_2026-10-19.csv).
+Import that same file into Cashflow Guardian and open it in your spreadsheet app.
+A JSON copy is also provided. Every record is fictional.
 
 As of 2026-10-19, the unpaid overdue IDs are INV-1024, INV-1026, INV-1028,
 INV-1032, INV-1035 and INV-1036. Expected unpaid total: **USD 14,500**.
