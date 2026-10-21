@@ -7,7 +7,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from demo_data import demo_invoices
 from intelligence import answer_question, score_invoices
-from paypal_client import PayPalError, get_invoices, sandbox_configured
+from llm_proxy import LlmUnavailable, ask_synthetic, is_configured
+from paypal_client import PayPalError, get_invoice_detail, get_invoices, sandbox_configured
 from validation import validate_invoices
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -80,8 +81,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("workbench.js", "application/javascript; charset=utf-8")
         if path.path == "/app.js":
             return self._static("app.js", "application/javascript; charset=utf-8")
+        vendor_assets = {
+            "/vendor/ag-grid/ag-grid-community.min.js": ("vendor/ag-grid/ag-grid-community.min.js", "application/javascript; charset=utf-8"),
+            "/vendor/ag-grid/styles/ag-grid.min.css": ("vendor/ag-grid/styles/ag-grid.min.css", "text/css; charset=utf-8"),
+            "/vendor/ag-grid/styles/ag-theme-quartz.min.css": ("vendor/ag-grid/styles/ag-theme-quartz.min.css", "text/css; charset=utf-8"),
+        }
+        if path.path in vendor_assets:
+            return self._static(*vendor_assets[path.path])
         if path.path == "/api/status":
-            return self._send({"sandbox_configured": sandbox_configured(), "mode": "read-only", "environment": "sandbox", "ai": "TF-IDF and IsolationForest (local)"})
+            return self._send({"sandbox_configured": sandbox_configured(), "mode": "read-only", "environment": "sandbox", "ai": "TF-IDF and IsolationForest (local)", "external_ai_configured": is_configured(), "external_ai_scope": "synthetic-demo-only"})
         if path.path == "/api/analyze":
             source = parse_qs(path.query).get("source", ["demo"])[0]
             try:
@@ -92,13 +100,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({"error": str(exc)}, status=400)
             except PayPalError as exc:
                 return self._send({"error": str(exc)}, status=502)
+        if path.path.startswith("/api/invoices/"):
+            invoice_id = path.path.removeprefix("/api/invoices/")
+            if parse_qs(path.query).get("source", ["sandbox"])[0] != "sandbox":
+                return self._send({"error": "Invoice details are available only for PayPal Sandbox"}, status=400)
+            try:
+                return self._send(get_invoice_detail(invoice_id))
+            except PayPalError as exc:
+                status = 400 if "Invalid invoice ID" in str(exc) else 502
+                return self._send({"error": str(exc)}, status=status)
         self._send({"error": "Not found"}, status=404)
 
     def do_POST(self):
         if not self._allowed():
             return
         path = urlsplit(self.path).path
-        if path not in ('/api/ask', '/api/import'):
+        if path not in ('/api/ask', '/api/import', '/api/ai/ask'):
             return self._send({"error": "Not found"}, status=404)
         if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
             return self._send({'error': 'JSON required'}, 415)
@@ -109,6 +126,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({"error": "Request body size outside allowed bounds"}, status=413)
             self.connection.settimeout(10)
             payload = json.loads(self.rfile.read(size))
+            if path == '/api/ai/ask':
+                # This route accepts only a question; invoice data/source selectors are rejected.
+                if set(payload) != {"question"}:
+                    return self._send({"error": "Only a question is accepted by the synthetic-data AI route"}, status=400)
+                answer = ask_synthetic(payload.get("question", ""))
+                return self._send({"answer": answer, "source": "synthetic-demo", "external": True})
             if path == '/api/import':
                 result = score_invoices(validate_invoices(payload))
                 result['source'] = 'import'
@@ -121,6 +144,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"answer": answer_question(result, question)})
         except (ValueError, json.JSONDecodeError, AttributeError, TypeError, TimeoutError):
             return self._send({"error": "Invalid request"}, status=400)
+        except LlmUnavailable as exc:
+            return self._send({"error": str(exc)}, status=503)
         except PayPalError as exc:
             return self._send({"error": str(exc)}, status=502)
 

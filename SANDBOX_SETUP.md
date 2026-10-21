@@ -17,7 +17,7 @@
    weitergeben, niemals Schlüssel oder private Rechnungsdaten.
 
 Der Start prüft die Verbindung. Die Anwendung liest Rechnungen, erstellt keine
-Zahlungen und verschickt keine Nachrichten. Die Einrichtung muss vom Kontoinhaber
-abgeschlossen werden; derzeit ist noch keine echte Verbindung nachgewiesen.
+Zahlungen und verschickt keine Nachrichten. Die Sandbox-Verbindung wurde lokal
+geprüft und lieferte eine Testrechnung; vor der Aufnahme bitte erneut prüfen.
 
 Offizielle Anleitung: https://developer.paypal.com/api/rest/

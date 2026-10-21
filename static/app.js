@@ -149,6 +149,7 @@ function renderSummary(){
  $('connectionTitle').textContent=source==='demo'?cgT('synthetic'):'PayPal Sandbox';
  $('connectionText').textContent=cgT(source==='demo'?'syntheticDesc':'sandboxDesc');
  $('demoButton').classList.toggle('active',source==='demo');$('sandboxButton').classList.toggle('active',source==='sandbox');
+ if(typeof cgRenderCashIn==='function')cgRenderCashIn();if(typeof cgRenderNudgeQueue==='function')cgRenderNudgeQueue();
 }
 function renderAlerts(){
  const rows=report.invoices.filter(x=>x.currency===cgChartCurrency&&x.flags?.length)
@@ -159,28 +160,29 @@ function renderAlerts(){
  }).join(''):`<div class="alert alert-nothing"><div class="alert-icon">✓</div><div><strong>${safe(cgT('allClear'))}</strong><p>${safe(cgT('noSignals'))}</p></div></div>`;
 }
 function columns(){return [
- {field:'number',headerName:cgT('invoice'),minWidth:122},
+ {field:'number',headerName:cgT('invoice'),minWidth:138,cellRenderer:p=>{const wrap=document.createElement('div'),button=document.createElement('button'),issued=document.createElement('small');wrap.className='ag-invoice-cell';button.type='button';button.className='invoice-link';button.textContent=p.value;button.addEventListener('click',()=>cgShowDetails(report.invoices.findIndex(row=>row.id===p.data.id)));issued.className='invoice-sub date-cell';issued.textContent=cgT('issuedDate')+': '+p.data.issuedText;issued.title=cgFullDate(p.data.issued);wrap.append(button,issued);return wrap;}},
  {field:'customer',headerName:cgT('customer'),minWidth:154},
  {field:'description',headerName:cgT('details'),minWidth:200},
  {field:'amount',headerName:cgT('amount'),minWidth:125,valueFormatter:p=>money(p.data.currency,p.value)},
  {field:'statusText',headerName:cgT('status'),minWidth:125},
  {field:'dueText',headerName:cgT('dueDate'),minWidth:140},
  {field:'dueStatusText',headerName:cgWT('dueStatus'),minWidth:145,cellRenderer:p=>{if(!p.data.isOverdue)return '';const marker=document.createElement('span');marker.className='overdue-flag';marker.setAttribute('role','img');marker.setAttribute('aria-label',cgT('overdue'));const square=document.createElement('i');square.className='overdue-square';square.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=cgT('overdue');marker.append(square,label);return marker;}},
- {field:'reviewedText',headerName:cgWT('reviewStatus'),minWidth:145,sortable:false,cellRenderer:p=>{const button=document.createElement('button');button.type='button';button.className='review-toggle'+(p.value?' is-reviewed':'');button.dataset.reviewToggle=p.data.number;button.setAttribute('aria-pressed',String(Boolean(p.value)));button.setAttribute('aria-label',cgWT(p.value?'unreview':'review'));button.title=cgWT(p.value?'unreview':'review');button.textContent=p.value?'✓':'○';return button;}},
+ {field:'reviewedText',headerName:cgWT('reviewStatus'),minWidth:115,sortable:false,cellRenderer:p=>{if(!p.value)return '';const mark=document.createElement('span');mark.className='reviewed-check';mark.setAttribute('role','img');mark.setAttribute('aria-label',cgWT('reviewed'));mark.textContent='✓';return mark;}},
  {field:'riskText',headerName:cgT('aiSignal'),minWidth:124}
 ];}
 function gridStrings(){return {page:cgT('page'),next:cgT('next'),previous:cgT('previous'),of:cgT('of'),to:cgT('to'),pageSize:cgT('pageSize'),noRowsToShow:cgT('noRows'),filterOoo:cgT('filterOoo'),contains:cgT('contains'),notContains:cgT('notContains'),equals:cgT('equals'),blank:cgT('blank'),notBlank:cgT('notBlank'),loadingOoo:cgT('pleaseWait')};}
 function renderGrid(){
  const rows=cgVisibleRows().map(visibleRow),oldFilter=$('filter').value;
  $('tableCount').textContent=cgT('records',{n:rows.length})+' · '+cgT(source==='demo'?'syntheticTag':'sandboxReadOnly');
- $('invoiceGrid').hidden=true;$('fallbackTable').hidden=false;
  const q=oldFilter.trim().toLocaleLowerCase(CG_LOCALES[cgLanguage]);
  const visible=rows.filter(x=>[x.number,x.customer,x.description,x.statusText,x.dueStatusText,x.riskText,x.flagsText].join(' ').toLocaleLowerCase(CG_LOCALES[cgLanguage]).includes(q));
+ if(window.agGrid?.createGrid){const host=$('invoiceGrid');host.hidden=false;$('fallbackTable').hidden=true;host.classList.add('ag-theme-quartz');const options={rowData:visible,columnDefs:columns(),defaultColDef:{resizable:true,sortable:true,filter:true,flex:1,minWidth:105},pagination:true,paginationPageSize:10,paginationPageSizeSelector:[10,25,50],animateRows:true,localeText:gridStrings(),getRowId:p=>String(p.data.id),onFilterChanged:e=>{$('tableCount').textContent=cgT('records',{n:e.api.getDisplayedRowCount()})+' · '+cgT(source==='demo'?'syntheticTag':'sandboxReadOnly');},overlayNoRowsTemplate:`<span class="ag-empty">${safe(cgT('noRows'))}</span>`};if(!gridApi)gridApi=agGrid.createGrid(host,options);else{gridApi.setGridOption('columnDefs',options.columnDefs);gridApi.setGridOption('rowData',visible);gridApi.setGridOption('localeText',options.localeText);}return;}
+ $('invoiceGrid').hidden=true;$('fallbackTable').hidden=false;
  visible.sort((a,b)=>{const av=a[cgSort.key]??'',bv=b[cgSort.key]??'';return (typeof av==='number'?av-bv:String(av).localeCompare(String(bv),CG_LOCALES[cgLanguage]))*cgSort.direction;});
  const headers=['invoice','customer','amount','status','dueDate','dueStatus','reviewStatus','aiSignal'];
  const fields=['number','customer','amount','statusText','due','dueStatusText','reviewedText','riskText'];
  $('fallbackTable').innerHTML=`<div class="table-scroll"><table class="fallback"><thead><tr>${headers.map((h,i)=>`<th aria-sort="${cgSort.key===fields[i]?(cgSort.direction===1?'ascending':'descending'):'none'}"><button type="button" data-sort="${fields[i]}">${safe(h==='dueStatus'?cgWT(h):h==='reviewStatus'?cgWT(h):cgT(h))} ${cgSort.key===fields[i]?(cgSort.direction===1?'↑':'↓'):''}</button></th>`).join('')}</tr></thead><tbody>`+
- (visible.length?visible.map(x=>{const action=cgWT(x.reviewedText?'unreview':'review');return `<tr><td class="invoice-cell"><button type="button" class="invoice-link" data-detail="${report.invoices.findIndex(r=>r.id===x.id)}">${safe(x.number)}</button><small class="invoice-sub date-cell" title="${safe(cgFullDate(x.issued))}">${safe(cgT('issuedDate'))}: ${safe(x.issuedText)}</small></td><td class="customer-cell"><span>${safe(x.customer)}</span><small class="invoice-description">${safe(x.description)}</small></td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${x.isOverdue?`<span class="overdue-flag" role="img" aria-label="${safe(cgT('overdue'))}"><i class="overdue-square" aria-hidden="true"></i><span>${safe(cgT('overdue'))}</span></span>`:''}</td><td><button type="button" class="review-toggle${x.reviewedText?' is-reviewed':''}" data-review-toggle="${safe(x.number)}" aria-pressed="${Boolean(x.reviewedText)}" aria-label="${safe(action)}" title="${safe(action)}">${x.reviewedText?'✓':'○'}</button></td><td>${safe(x.riskText)}</td></tr>`;}).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
+ (visible.length?visible.map(x=>{const reviewMark=x.reviewedText?`<span class="reviewed-check" role="img" aria-label="${safe(cgWT('reviewed'))}">✓</span>`:'';return `<tr><td class="invoice-cell"><button type="button" class="invoice-link" data-detail="${report.invoices.findIndex(r=>r.id===x.id)}">${safe(x.number)}</button><small class="invoice-sub date-cell" title="${safe(cgFullDate(x.issued))}">${safe(cgT('issuedDate'))}: ${safe(x.issuedText)}</small></td><td class="customer-cell"><span>${safe(x.customer)}</span><small class="invoice-description">${safe(x.description)}</small></td><td class="num-cell">${safe(money(x.currency,x.amount))}</td><td>${safe(x.statusText)}</td><td class="date-cell" title="${safe(cgFullDate(x.due))}">${safe(x.dueText)}</td><td>${x.isOverdue?`<span class="overdue-flag" role="img" aria-label="${safe(cgT('overdue'))}"><i class="overdue-square" aria-hidden="true"></i><span>${safe(cgT('overdue'))}</span></span>`:''}</td><td>${reviewMark}</td><td>${safe(x.riskText)}</td></tr>`;}).join(''):`<tr><td colspan="8">${safe(cgT('noRows'))}</td></tr>`)+`</tbody></table></div>`;
 }
 let cgSort={key:'number',direction:1};
 async function load(nextSource=source){
@@ -237,7 +239,7 @@ function exportCSV(){
 }
 function cgOnLanguageChanged(){
  cgRenderSettings();
- if(report){renderSummary();renderAlerts();renderAnalytics();renderGrid();}
+ if(report){cgRenderWorkbench();renderSummary();renderAlerts();renderAnalytics();renderGrid();}
  resetConversation();
  if(!$('message').hidden)hideToast();
 }
@@ -260,7 +262,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('chatForm').addEventListener('submit',e=>{e.preventDefault();ask($('question').value);});
  const ids=['urgent','duplicates','overdue'];
  document.querySelectorAll('[data-prompt]').forEach((b,i)=>{b.onclick=()=>ask(cgT(['promptUrgent','promptDuplicate','promptOverdue'][i]),ids[i]);});
- $('filter').addEventListener('input',()=>{renderAnalytics();renderGrid();});
+ $('filter').addEventListener('input',()=>{renderAnalytics();renderGrid();cgRenderCashIn();cgRenderNudgeQueue();});
  document.querySelectorAll('[data-aging-filter]').forEach(button=>button.addEventListener('click',()=>cgSelectAging(button.dataset.agingFilter)));
  $('reviewFilter').addEventListener('click',()=>{cgReviewOnly=!cgReviewOnly;cgAging='all';renderSummary();renderAnalytics();renderGrid();});
  $('export').onclick=exportCSV;

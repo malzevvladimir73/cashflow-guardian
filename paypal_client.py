@@ -6,7 +6,7 @@ import math
 import re
 from datetime import date
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 SANDBOX = "https://api-m.sandbox.paypal.com"
@@ -88,6 +88,88 @@ def get_invoices():
         if page == 4:
             raise PayPalError('More than 400 invoices: analysis stopped to avoid incomplete totals.')
     return [normalize_invoice(item) for item in items[:MAX_INVOICES]]
+
+
+def _access_token():
+    if not sandbox_configured():
+        raise PayPalError("Sandbox not configured. Set PAYPAL_SANDBOX_CLIENT_ID and PAYPAL_SANDBOX_CLIENT_SECRET")
+    auth = _request("/v1/oauth2/token", basic=(
+        os.environ["PAYPAL_SANDBOX_CLIENT_ID"], os.environ["PAYPAL_SANDBOX_CLIENT_SECRET"]
+    ), data=b"grant_type=client_credentials")
+    token = auth.get("access_token")
+    if not token:
+        raise PayPalError("Sandbox did not return an access token")
+    return token
+
+
+def get_invoice_detail(invoice_id):
+    """Fetch safe, read-only details for one invoice in PayPal Sandbox."""
+    if not isinstance(invoice_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", invoice_id):
+        raise PayPalError("Invalid invoice ID")
+    token = _access_token()
+    payload = _request("/v2/invoicing/invoices/" + quote(invoice_id, safe=""), token=token)
+    if not isinstance(payload, dict):
+        raise PayPalError("Unexpected invoice detail response from Sandbox")
+    return normalize_invoice_detail(payload)
+
+
+def _safe_text(value, limit=300):
+    return value[:limit] if isinstance(value, str) else ""
+
+
+def _safe_money(value):
+    if not isinstance(value, dict):
+        return None
+    try:
+        amount = _amount(value)
+        currency = value.get("currency_code")
+        if not isinstance(currency, str) or not re.fullmatch(r"[A-Z]{3}", currency):
+            return None
+        return {"value": amount, "currency": currency}
+    except PayPalError:
+        return None
+
+
+def normalize_invoice_detail(inv):
+    items = []
+    for item in inv.get("items") or []:
+        if not isinstance(item, dict) or len(items) >= 100:
+            continue
+        items.append({
+            "name": _safe_text(item.get("name"), 200),
+            "description": _safe_text(item.get("description"), 500),
+            "quantity": _safe_text(str(item.get("quantity", "")), 30),
+            "unit_amount": _safe_money(item.get("unit_amount")),
+            "amount": _safe_money(item.get("unit_amount")),
+        })
+    transactions = []
+    for kind in ("payments", "refunds"):
+        source = inv.get(kind) or []
+        if not isinstance(source, list):
+            continue
+        for payment in source[:100]:
+            if not isinstance(payment, dict):
+                continue
+            amount = _safe_money(payment.get("amount"))
+            if amount:
+                transactions.append({
+                    "type": kind[:-1],
+                    "date": _safe_text(payment.get("payment_date") or payment.get("refund_date") or payment.get("date"), 40),
+                    "method": _safe_text(payment.get("method"), 80),
+                    "amount": amount,
+                    "note": _safe_text(payment.get("note"), 300),
+                })
+    attachments = []
+    for attachment in inv.get("attachments") or []:
+        if not isinstance(attachment, dict) or len(attachments) >= 100:
+            continue
+        size = attachment.get("size")
+        attachments.append({
+            "content_type": _safe_text(attachment.get("content_type"), 100),
+            "created": _safe_text(attachment.get("create_time"), 40),
+            "size": size if isinstance(size, int) and 0 <= size <= 2_000_000_000 else None,
+        })
+    return {"items": items, "transactions": transactions, "attachments": attachments}
 
 
 def _amount(value):

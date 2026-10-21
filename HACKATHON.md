@@ -9,21 +9,25 @@ an editable reminder. Twelve languages and locale-aware dates make the workbench
 accessible across markets. Currency totals remain separate to avoid misleading sums.
 
 ## Two-minute demo outline
-0:00–0:20: Explain the problem: finding actionable overdue invoices among many rows.
-0:20–0:45: Show a real sandbox dataset after completing SANDBOX_SETUP.md. Identify it
-as test data. Do not show credentials or unrelated customer information.
-0:45–1:15: Select a currency, filter overdue aging and open an invoice. Explain the
-remaining balance and similarity/anomaly signal, including human review limits.
-1:15–1:40: Draft a reminder, show that nothing is sent automatically; switch locale
-and demonstrate date settings and a group/month filter.
-1:40–2:00: Explain local processing, show repository/setup instructions and limitations.
+0:00–0:20: Explain the problem: finding the next safe action among many invoices.
+0:20–0:45: Show the explicitly synthetic queue: possible duplicate, 37-day overdue
+  invoice, missing due date and partial payment. Explain why the app does not send.
+0:45–1:15: Open the possible duplicate; show the matching evidence and manual check.
+  Then open the overdue example, inspect its balance and prepare an editable reminder.
+1:15–1:40: Use AG Grid to filter, sort, resize and page through the same invoices.
+1:40–2:00: Show the verified read-only Sandbox connection, then
+  switch locale and explain the local-processing and forecast limitations.
 Do not substitute synthetic offline screens for proof of a real PayPal connection.
 
 ## Evidence still required
-- Create sandbox app, populate fictional invoices and verify API results end to end.
+- PayPal Sandbox connection has been verified locally and returned one test invoice;
+  rerun it before recording. The synthetic data covers the richer walkthrough cases.
 - Record a public YouTube video under three minutes after that validation.
 - Complete English Devpost submission and verify eligibility with official rules.
-- AG Grid special prize: not currently implemented; do not claim this integration.
+- AG Grid Community is integrated in the invoice workspace and bundled locally.
+  A server-side, synthetic-data-only OpenAI bridge is scaffolded but stays disabled
+  until local environment settings are supplied. AG Studio's licensed Agent Framework
+  and UI are not integrated; do not claim those Enterprise/Studio capabilities.
 - There is no measured time-saving claim yet. For a fair pilot, have users identify
   the same overdue balances and duplicate candidates with their usual workflow and
   this app; record completion time, accuracy, sample size and median difference.

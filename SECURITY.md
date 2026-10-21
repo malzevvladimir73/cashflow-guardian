@@ -21,6 +21,21 @@ Reminder drafts require human review and manual sending outside this application
 Review marks are temporary; they do not change PayPal records. ML flags can produce
 false positives and false negatives. Do not use them as automatic collection decisions.
 
+Optional external-AI bridge: the local server exposes `/api/ai/ask` only when both
+`OPENAI_API_KEY` and `OPENAI_MODEL` are set in its process environment. It accepts
+only a question and always supplies the built-in fictional demo records; it cannot
+receive Sandbox or imported invoice rows. Requests use the OpenAI Responses API with
+`store: false`; the key never enters browser code or logs. When configured, the
+question and synthetic records are sent to OpenAI. Review the provider's current
+privacy and data-retention terms before enabling this. The existing local assistant
+remains the default, and normal app use makes no external AI call. This is a secure
+provider-proxy scaffold; AG Studio's licensed Agent Framework and UI are not yet
+registered or integrated.
+
+To experiment, set `OPENAI_API_KEY` and `OPENAI_MODEL` in the server process
+environment before starting it. Never put real values in `.env.example`, source
+files, screenshots, browser storage, or chat. Unset either value to disable the route.
+
 Guidance used:
 - OWASP CSRF prevention: https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
 - NIST transparency and human oversight: https://airc.nist.gov/airmf-resources/airmf/3-sec-characteristics/

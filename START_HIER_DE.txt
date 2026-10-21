@@ -7,4 +7,5 @@ Mit PayPal-Testkonto: SANDBOX_SETUP.md lesen, dann START_SANDBOX.bat.
 Neu: Währungsauswahl aktualisiert Kennzahlen; kein doppelter Einstellungsknopf.
 Rechnungsdetails, Altersgruppen, lokaler Import und Erinnerungsentwürfe.
 Vorversionen bleiben erhalten. Keine Nachrichten oder Zahlungen werden gesendet.
-PayPal-Sandbox-Verbindung ist bis zur Kontoeinrichtung noch ungeprüft.
+PayPal-Sandbox-Verbindung wurde lokal geprüft und lieferte eine Testrechnung.
+Vor einer Aufnahme erneut testen. Synthetische Demo-Rechnungen sind frei erfunden.

@@ -27,6 +27,31 @@ def test_invoice_normalization():
     assert x["status"] == "UNPAID"
 
 
+def test_invoice_detail_is_bounded_and_excludes_file_urls():
+    detail = paypal_client.normalize_invoice_detail({
+        "items": [{"name": "Consulting", "description": "Review", "quantity": "2", "unit_amount": {"currency_code": "EUR", "value": "120.25"}}],
+        "payments": [{"payment_date": "2026-10-20", "method": "PAYPAL", "amount": {"currency_code": "EUR", "value": "240.50"}}],
+        "attachments": [{"reference_url": "https://example.invalid/private", "content_type": "application/pdf", "size": 2048}],
+    })
+    assert detail["items"][0]["unit_amount"] == {"value": 120.25, "currency": "EUR"}
+    assert detail["transactions"][0]["type"] == "payment"
+    assert detail["attachments"][0]["content_type"] == "application/pdf"
+    assert "reference_url" not in detail["attachments"][0]
+
+
+def test_invoice_detail_requires_safe_id(monkeypatch):
+    monkeypatch.setenv("PAYPAL_SANDBOX_CLIENT_ID", "fake-id")
+    monkeypatch.setenv("PAYPAL_SANDBOX_CLIENT_SECRET", "fake-secret")
+    with patch.object(paypal_client, "_request") as request:
+        try:
+            paypal_client.get_invoice_detail("../production")
+        except paypal_client.PayPalError as exc:
+            assert "Invalid invoice ID" in str(exc)
+        else:
+            raise AssertionError("Expected unsafe invoice ID rejection")
+        request.assert_not_called()
+
+
 def test_missing_credentials_is_safe(monkeypatch):
     monkeypatch.delenv("PAYPAL_SANDBOX_CLIENT_ID", raising=False)
     monkeypatch.delenv("PAYPAL_SANDBOX_CLIENT_SECRET", raising=False)
