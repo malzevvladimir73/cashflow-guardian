@@ -1,0 +1,152 @@
+[
+  {
+    "number": "INV-1024",
+    "customer": "Northstar Studio",
+    "description": "Brand identity and visual guidelines",
+    "amount": 1850,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-08-29",
+    "due": "2026-09-27"
+  },
+  {
+    "number": "INV-1025",
+    "customer": "Lumen Market",
+    "description": "Monthly ecommerce analytics dashboard",
+    "amount": 920,
+    "currency": "USD",
+    "status": "PAID",
+    "issued": "2026-09-08",
+    "due": "2026-10-08"
+  },
+  {
+    "number": "INV-1026",
+    "customer": "Harbor Works",
+    "description": "Website development sprint two",
+    "amount": 3200,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-09-15",
+    "due": "2026-10-10"
+  },
+  {
+    "number": "INV-1027",
+    "customer": "Velvet Cafe",
+    "description": "Social media content design package",
+    "amount": 480,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-10-03",
+    "due": "2026-11-01"
+  },
+  {
+    "number": "INV-1028",
+    "customer": "Northstar Studio",
+    "description": "Brand identity & visual guide lines",
+    "amount": 1850,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-08-30",
+    "due": "2026-09-28"
+  },
+  {
+    "number": "INV-1029",
+    "customer": "Bright Labs",
+    "description": "Automation workflow build",
+    "amount": 1100,
+    "currency": "USD",
+    "status": "DRAFT",
+    "issued": "2026-10-15",
+    "due": "2026-11-14"
+  },
+  {
+    "number": "INV-1030",
+    "customer": "Kite & Co",
+    "description": "One-time consulting session",
+    "amount": 350,
+    "currency": "USD",
+    "status": "PAID",
+    "issued": "2026-09-23",
+    "due": "2026-10-17"
+  },
+  {
+    "number": "INV-1031",
+    "customer": "Harbor Works",
+    "description": "Web development phase 3",
+    "amount": 2850,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-10-07",
+    "due": "2026-10-26"
+  },
+  {
+    "number": "INV-1032",
+    "customer": "Aurora Media",
+    "description": "Quarterly content strategy",
+    "amount": 740,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-09-21",
+    "due": "2026-10-17"
+  },
+  {
+    "number": "INV-1033",
+    "customer": "Lumen Market",
+    "description": "Ecommerce analytics monthly reporting",
+    "amount": 920,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-10-12",
+    "due": "2026-11-11"
+  },
+  {
+    "number": "INV-1034",
+    "customer": "Echo Garden",
+    "description": "Product photography 40 images",
+    "amount": 1250,
+    "currency": "USD",
+    "status": "PAID",
+    "issued": "2026-09-01",
+    "due": "2026-09-29"
+  },
+  {
+    "number": "INV-1035",
+    "customer": "Orchid Labs",
+    "description": "Software integration annual plan",
+    "amount": 6400,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-08-13",
+    "due": "2026-09-12"
+  },
+  {
+    "number": "INV-1036",
+    "customer": "Velvet Cafe",
+    "description": "Menu and brand icon updates",
+    "amount": 460,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-09-28",
+    "due": "2026-10-18"
+  },
+  {
+    "number": "INV-1037",
+    "customer": "Bright Labs",
+    "description": "QA and release automation support",
+    "amount": 1050,
+    "currency": "USD",
+    "status": "SENT",
+    "issued": "2026-10-05",
+    "due": "2026-11-04"
+  },
+  {
+    "number": "INV-1038",
+    "customer": "Aurora Media",
+    "description": "Content strategy quarterly planning",
+    "amount": 740,
+    "currency": "USD",
+    "status": "PAID",
+    "issued": "2026-07-22",
+    "due": "2026-08-20"
+  }
+]
